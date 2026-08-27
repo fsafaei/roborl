@@ -14,6 +14,7 @@ from typing import Annotated
 
 import tyro
 
+from roborl.algos.sac.sac import SacConfig, run_sac
 from roborl.demo import DemoConfig, run_demo
 
 
@@ -109,11 +110,13 @@ def _run_benchmark(args: BenchmarkArgs) -> None:
 def main() -> None:
     """Parse the subcommand, run it, and print its summary."""
     config = tyro.extras.subcommand_cli_from_dict(
-        {"demo": DemoConfig, "benchmark": BenchmarkArgs},
+        {"demo": DemoConfig, "sac": SacConfig, "benchmark": BenchmarkArgs},
         description="roborl — learning RL for robotics by building it.",
         config=(tyro.conf.OmitSubcommandPrefixes,),
     )
-    if isinstance(config, DemoConfig):
+    if isinstance(config, SacConfig):
+        print(run_sac(config).render())
+    elif isinstance(config, DemoConfig):
         print(run_demo(config).render())
     elif isinstance(config, BenchmarkArgs):
         _run_benchmark(config)

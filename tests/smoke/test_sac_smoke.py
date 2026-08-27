@@ -1,0 +1,33 @@
+"""SAC smoke test: a few hundred CPU steps run, log, and stay finite."""
+
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+from roborl.algos.sac.sac import SacConfig, run_sac
+
+
+@pytest.mark.smoke
+def test_sac_400_steps_cpu(tmp_path: Path) -> None:
+    summary = run_sac(
+        SacConfig(
+            env_id="Pendulum-v1",
+            total_timesteps=400,
+            learning_starts=150,  # past warmup: critic, actor, and alpha all update
+            batch_size=32,
+            buffer_size=500,
+            device="cpu",
+            track=False,
+            save_episodes=True,
+            episode_dir=str(tmp_path),
+        )
+    )
+    assert summary.steps == 400
+    assert summary.sps > 0
+    assert len(summary.episodic_returns) >= 1
+    assert np.isfinite(summary.episodic_returns).all()  # a NaN policy dies here
+    assert "sac finished" in summary.render()
+    assert summary.episodes_csv is not None
+    csv_text = Path(summary.episodes_csv).read_text()
+    assert csv_text.startswith("run_id,global_step,episodic_return")
