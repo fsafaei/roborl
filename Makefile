@@ -3,8 +3,8 @@
 
 .PHONY: setup fmt fmt-check lint typecheck test test-all check demo clean
 
-setup:  ## Install dev environment and pre-commit hooks
-	uv sync --group dev
+setup:  ## Install dev environment (incl. benchmark tooling) and pre-commit hooks
+	uv sync --group dev --extra benchmark
 	uv run pre-commit install
 
 fmt:  ## Auto-format code and fix trivially fixable lint issues

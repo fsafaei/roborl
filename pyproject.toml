@@ -37,6 +37,7 @@ dev = [
   "pytest>=9",
   "pytest-cov>=6",
   "pre-commit>=4",
+  "pandas-stubs>=2.2",
 ]
 
 [project.scripts]

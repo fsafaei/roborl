@@ -8,8 +8,11 @@ future training script follows.
 
 from __future__ import annotations
 
+import csv
+import itertools
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 
@@ -33,6 +36,10 @@ class DemoConfig(ExperimentConfig):
     exp_name: str = "demo"
     env_id: str = "CartPole-v1"
     total_timesteps: int = 5_000
+    save_episodes: bool = False
+    """Write per-episode returns to runs/{run_name}.csv for benchmark compare."""
+    episode_dir: str = "runs"
+    """Directory episode CSVs are written to when save_episodes is on."""
 
 
 @dataclass(frozen=True)
@@ -45,6 +52,7 @@ class DemoSummary:
         steps: Environment steps actually taken.
         sps: Average environment steps per second.
         wandb_url: The W&B run URL when tracking online, else None.
+        episodes_csv: Path of the saved episode log, when enabled.
     """
 
     episodic_returns: list[float] = field(default_factory=list)
@@ -52,6 +60,7 @@ class DemoSummary:
     steps: int = 0
     sps: float = 0.0
     wandb_url: str | None = None
+    episodes_csv: str | None = None
 
     def render(self) -> str:
         """Format the end-of-run console summary."""
@@ -66,6 +75,8 @@ class DemoSummary:
             if self.wandb_url
             else "telemetry: disabled (pass --track to log to W&B)"
         )
+        if self.episodes_csv:
+            lines.append(f"episode log: {self.episodes_csv}")
         return "\n".join(lines)
 
 
@@ -114,13 +125,33 @@ def run_demo(config: DemoConfig) -> DemoSummary:
             env.reset()
 
     elapsed = time.perf_counter() - start
+    episodes_csv = _save_episode_log(config, returns, lengths) if config.save_episodes else None
     summary = DemoSummary(
         episodic_returns=returns,
         episodic_lengths=lengths,
         steps=config.total_timesteps,
         sps=config.total_timesteps / elapsed,
         wandb_url=logger.url,
+        episodes_csv=episodes_csv,
     )
     logger.finish()
     env.close()
     return summary
+
+
+def _save_episode_log(config: DemoConfig, returns: list[float], lengths: list[int]) -> str:
+    """Write per-episode curves in the benchmark compare input format.
+
+    Columns are ``run_id, global_step, episodic_return`` — the same shape
+    reference adapters produce, so demo runs can exercise the whole
+    comparison pipeline.
+    """
+    path = Path(config.episode_dir) / f"{config.run_name}.csv"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(["run_id", "global_step", "episodic_return"])
+        step_of_episode_end = itertools.accumulate(lengths)
+        for step, episodic_return in zip(step_of_episode_end, returns, strict=True):
+            writer.writerow([config.run_name, step, episodic_return])
+    return str(path)

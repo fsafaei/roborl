@@ -20,7 +20,7 @@ from roborl.config import ExperimentConfig
 from roborl.telemetry import metrics
 
 
-def _git_provenance() -> dict[str, Any]:
+def git_provenance() -> dict[str, Any]:
     """Return the current git SHA and dirty flag, or placeholders outside a repo."""
     try:
         sha = subprocess.run(
@@ -43,7 +43,7 @@ def _provenance(resolved_device: str) -> dict[str, Any]:
     import torch
 
     return {
-        **_git_provenance(),
+        **git_provenance(),
         "python_version": platform.python_version(),
         "torch_version": torch.__version__,
         "gymnasium_version": gymnasium.__version__,
