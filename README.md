@@ -85,7 +85,7 @@ column. Nothing here is implemented yet; the infrastructure came first.
 
 | Algorithm | Envs | Status | Verified against | Report |
 |---|---|---|---|---|
-| SAC | Pendulum, MuJoCo | implemented | CleanRL | — |
+| SAC | Pendulum, MuJoCo | verified ✅ | CleanRL | [Hopper](benchmarks/reports/sac/Hopper-v4/report.md) · [HalfCheetah](benchmarks/reports/sac/HalfCheetah-v4/report.md) · [Walker2d](benchmarks/reports/sac/Walker2d-v4/report.md) |
 | PPO (discrete) | CartPole, Acrobot, LunarLander | planned | CleanRL | — |
 | PPO (continuous) | Pendulum, MuJoCo | planned | CleanRL | — |
 | FlashSAC | MuJoCo, high-dimensional control | planned | published results ([Kim et al., 2026](https://arxiv.org/abs/2604.04539)) | — |
