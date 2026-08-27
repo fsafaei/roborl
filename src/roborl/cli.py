@@ -1,17 +1,22 @@
-"""Command-line entry point for roborl.
+"""Command-line entry point: ``roborl <subcommand>`` via tyro.
 
-Phase 1 placeholder: subcommands (``demo``, ``benchmark``) arrive with the
-core library in the next phase.
+Subcommands are frozen config dataclasses; tyro derives flags, defaults, and
+help text from their fields and docstrings. ``benchmark`` subcommands arrive
+with the benchmarking harness.
 """
 
 from __future__ import annotations
 
-import roborl
+import tyro
+
+from roborl.demo import DemoConfig, run_demo
 
 
 def main() -> None:
-    """Print the package version.
-
-    Replaced by the tyro-powered subcommand dispatcher in Phase 2.
-    """
-    print(f"roborl {roborl.__version__} — run `roborl demo` once Phase 2 lands.")
+    """Parse the subcommand, run it, and print its summary."""
+    config = tyro.extras.subcommand_cli_from_dict(
+        {"demo": DemoConfig},
+        description="roborl — learning RL for robotics by building it.",
+    )
+    if isinstance(config, DemoConfig):
+        print(run_demo(config).render())
