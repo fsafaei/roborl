@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Tests never talk to W&B; belt-and-braces on top of track=False defaults.
+  WANDB_MODE: disabled
+
+jobs:
+  quality:
+    name: quality (ruff, mypy, lockfile)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Check lockfile is in sync with pyproject.toml
+        run: uv lock --check
+      - name: Install (CPU torch + benchmark tooling)
+        run: uv sync --group dev --extra cpu --extra benchmark
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Ruff format check
+        run: uv run ruff format --check .
+      - name: Mypy
+        run: uv run mypy src tests
+
+  tests:
+    name: tests (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python }}
+      - name: Install (lean CPU-only torch wheels on Linux)
+        if: runner.os == 'Linux'
+        run: uv sync --group dev --extra cpu --extra benchmark
+      - name: Install (default PyPI wheels on macOS)
+        if: runner.os == 'macOS'
+        run: uv sync --group dev --extra benchmark
+      - name: Run unit + smoke tests
+        run: uv run pytest -m "unit or smoke"
