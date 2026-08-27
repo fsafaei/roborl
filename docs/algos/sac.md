@@ -167,11 +167,21 @@ target divergence; `alpha` should decay from 1.0 as the policy sharpens
 `log_pi`); `actor_loss` is meaningless in magnitude but should trend down as
 Q-values grow.
 
-## Verification plan (lifecycle steps 5–6)
+## Verification results (lifecycle steps 5–6) — PASS on all three envs
 
-Env-version parity: CleanRL's public benchmark runs use `Hopper-v4`,
-`HalfCheetah-v4`, `Walker2d-v4` (confirm at fetch time via
-`roborl benchmark fetch --algo sac_continuous_action --env-id ...`).
-≥5 seeds on Pendulum-class budgets; MuJoCo budget (1M steps × 3 envs) may
-justify 3 seeds — decide and state in the report. Sanity gate before any
-verification spend: solves Pendulum-v1 (random ≈ −1200, solved ≳ −200).
+Ran 2026-08-27 at commit `cb421b3`, 5 seeds per env (seeds 1–5), 1M steps
+each, CleanRL's default hyperparameters with zero overrides, on the same
+env versions CleanRL benchmarked. Reference: 6 CleanRL seeds per env from
+the `openrlbenchmark/cleanrl` W&B project. Final performance is IQM over
+the last 10% of training with 95% stratified bootstrap CIs; verdicts from
+`roborl benchmark compare`, reports committed under
+`benchmarks/reports/sac/`.
+
+| Env | roborl IQM [95% CI] | CleanRL IQM [95% CI] | Verdict |
+|---|---|---|---|
+| Hopper-v4 | 3082 [2604, 3389] | 2366 [2045, 2721] | **PASS** |
+| HalfCheetah-v4 | 10367 [8128, 11704] | 9750 [8608, 11083] | **PASS** |
+| Walker2d-v4 | 4610 [4204, 5059] | 3847 [3336, 4538] | **PASS** |
+
+Sanity gate (step 4) was passed first: Pendulum-v1 last-10 mean −187 at
+20k steps (random ≈ −1200), locked in as a `slow`-marker test.
