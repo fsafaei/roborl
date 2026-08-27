@@ -30,7 +30,7 @@ class ReferenceAdapter(Protocol):
         """Return reference curves as a ``(run_id, global_step, episodic_return)`` frame.
 
         Args:
-            algo: Algorithm name as the source spells it (e.g. ``"dqn"``).
+            algo: Algorithm name as the source spells it (e.g. ``"sac_continuous_action"``).
             env_id: Environment id as the source ran it (env-version parity:
                 verify on the version the reference used).
             force: Bypass any local cache and re-download.
@@ -43,7 +43,7 @@ class OpenRLBenchmarkAdapter:
 
     Runs live under the ``openrlbenchmark/cleanrl`` W&B project; an
     algorithm's runs are identified by ``config.exp_name`` (CleanRL's script
-    name, e.g. ``"dqn"``) and ``config.env_id``. Downloads are cached as
+    name, e.g. ``"sac_continuous_action"``) and ``config.env_id``. Downloads are cached as
     parquet under ``.cache/benchref/`` so every later use is offline.
     """
 
@@ -76,7 +76,7 @@ class OpenRLBenchmarkAdapter:
         cache-hit path via committed fixtures.
 
         Args:
-            algo: CleanRL exp_name, e.g. ``"dqn"``.
+            algo: CleanRL exp_name, e.g. ``"ppo"``.
             env_id: Environment id the reference ran.
             force: Re-download even if a cache file exists.
 

@@ -38,7 +38,7 @@ def plot_comparison(
         reference: Reference runs as ``(steps, values)`` pairs.
         grid: Common step grid for curve alignment.
         out_path: Where to write the PNG.
-        title: Figure title, e.g. ``"dqn on CartPole-v1"``.
+        title: Figure title, e.g. ``"sac on HalfCheetah-v4"``.
         ours_label: Legend label for our runs.
         reference_label: Legend label for the reference runs.
         final_stats: Optional ``{label: (iqm, ci_lo, ci_hi)}`` for the bars.

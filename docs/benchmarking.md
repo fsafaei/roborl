@@ -69,10 +69,10 @@ either a fix and a re-run, or a documented, understood deviation.
 ## Reports
 
 ```bash
-roborl benchmark fetch --algo dqn --env-id CartPole-v1
+roborl benchmark fetch --algo ppo --env-id CartPole-v1
 roborl benchmark compare --ours <our curve files> \
-    --reference .cache/benchref/openrlbenchmark/dqn/CartPole-v1.parquet \
-    --algo dqn --env-id CartPole-v1
+    --reference .cache/benchref/openrlbenchmark/ppo/CartPole-v1.parquet \
+    --algo ppo --env-id CartPole-v1
 ```
 
 `compare` renders `benchmarks/reports/<algo>/<env>/report.md` (header with

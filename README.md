@@ -85,12 +85,16 @@ column. Nothing here is implemented yet; the infrastructure came first.
 
 | Algorithm | Envs | Status | Verified against | Report |
 |---|---|---|---|---|
-| DQN | CartPole, Acrobot | planned | CleanRL | — |
+| SAC | Pendulum, MuJoCo | planned | CleanRL | — |
 | PPO (discrete) | CartPole, Acrobot, LunarLander | planned | CleanRL | — |
 | PPO (continuous) | Pendulum, MuJoCo | planned | CleanRL | — |
-| SAC | MuJoCo | planned | CleanRL | — |
-| TD3 | MuJoCo | planned | CleanRL | — |
-| HER + SAC/TD3 | Fetch (Reach, Push, PickAndPlace) | planned | SB3/zoo + published results | — |
+| FlashSAC | MuJoCo, high-dimensional control | planned | published results ([Kim et al., 2026](https://arxiv.org/abs/2604.04539)) | — |
+| HER + SAC | Fetch (Reach, Push, PickAndPlace) | planned | SB3/zoo + published results | — |
+
+Beyond these, the roadmap ends in **vision-language-action (VLA) policies**
+for manipulation — a research phase building on existing open VLA models
+rather than a from-scratch reimplementation, so it lives in the roadmap
+below rather than this table.
 
 ## How verification works
 
@@ -104,6 +108,9 @@ computes final-performance IQM with CIs, renders a markdown report + figure,
 and issues a mechanical verdict: **PASS** when our CI overlaps the
 reference's, **INVESTIGATE** otherwise — which triggers the
 [debugging protocol](docs/debugging-rl.md) and a lab-notebook entry.
+Algorithms without a CleanRL reference (FlashSAC, HER) verify against their
+papers' published results or the SB3 zoo through the same harness, via the
+corresponding reference adapters.
 
 Reports are committed under `benchmarks/reports/` and are the only thing
 that flips a status row to `verified ✅`. Details and thresholds:
@@ -124,12 +131,12 @@ modes look like: [docs/telemetry.md](docs/telemetry.md).
 | Phase | Focus | Envs | Algorithms | Verification reference |
 |---|---|---|---|---|
 | 0 ✅ | Infrastructure: tooling, telemetry, benchmark harness, docs, CI | — | — (random-agent pipeline check) | — |
-| 1 | Foundations: value-based & policy-gradient | CartPole-v1, Acrobot, (LunarLander w/ box2d) | DQN, PPO (discrete) | CleanRL |
-| 2 | Continuous control | Pendulum, MuJoCo: Hopper, HalfCheetah, Walker2d | PPO (continuous), SAC, TD3 | CleanRL |
-| 3 | Goal-conditioned RL | Gymnasium-Robotics Fetch (Reach, Push, PickAndPlace) | HER + SAC/TD3 | SB3/zoo + published results |
-| 4 | Contact-rich manipulation | robosuite: Lift, Door, Wipe, NutAssembly, TwoArmPegInHole | SAC/TD3 variants; then demonstrations, residual RL, impedance-aware policies as research threads | published results + ablation baselines |
+| 1 | Core model-free algorithms | CartPole-v1, Acrobot, Pendulum, (LunarLander w/ box2d), MuJoCo: Hopper, HalfCheetah, Walker2d | SAC, PPO (discrete + continuous) | CleanRL |
+| 2 | Scaling off-policy RL | MuJoCo + high-dimensional control tasks from the paper | FlashSAC ([Kim et al., 2026](https://arxiv.org/abs/2604.04539)): SAC with few-update/large-batch scaling and weight/feature/gradient norm bounding | published results (+ reference code if released) |
+| 3 | Goal-conditioned RL | Gymnasium-Robotics Fetch (Reach, Push, PickAndPlace) | HER + SAC | SB3/zoo + published results |
+| 4 | Contact-rich manipulation & VLAs | robosuite: Lift, Door, Wipe, NutAssembly, TwoArmPegInHole | FlashSAC/SAC variants; demonstrations, residual RL; then vision-language-action policies (fine-tuning and evaluating open VLA models) as research threads | published results + ablation baselines |
 
-Phase 2 uses locomotion *tasks* purely as standard verification benchmarks —
+Phase 1 uses locomotion *tasks* purely as standard verification benchmarks —
 the destination is manipulation. Phases advance only when the previous
 phase's algorithms are `verified ✅`.
 
@@ -138,6 +145,7 @@ phase's algorithms are `verified ✅`.
 - Huang et al., [CleanRL: High-quality Single-file Implementations of Deep RL Algorithms](https://docs.cleanrl.dev) (JMLR 2022) — the verification oracle; public runs under the [openrlbenchmark](https://wandb.ai/openrlbenchmark/cleanrl) W&B entity
 - Agarwal et al., [Deep RL at the Edge of the Statistical Precipice](https://arxiv.org/abs/2108.13264) (NeurIPS 2021) + [rliable](https://github.com/google-research/rliable) — the evaluation methodology
 - Huang et al., [The 37 Implementation Details of Proximal Policy Optimization](https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/) (ICLR Blog Track 2022) — the model for our per-algorithm spec notes
+- Kim et al., [FlashSAC: Fast and Stable Off-Policy Reinforcement Learning for High-Dimensional Robot Control](https://arxiv.org/abs/2604.04539) (2026) — the roadmap's scaling phase
 - Andy Jones, [Debugging Reinforcement Learning](https://andyljones.com/posts/rl-debugging.html) — foundation for our debugging protocol
 - John Schulman, *The Nuts and Bolts of Deep RL Research*
 - [OpenAI Spinning Up](https://spinningup.openai.com) — theory companion

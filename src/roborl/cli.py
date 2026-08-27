@@ -22,7 +22,7 @@ class BenchmarkFetchArgs:
     """Download reference curves into the local parquet cache."""
 
     algo: str
-    """Algorithm as the reference spells it (CleanRL exp_name, e.g. "dqn")."""
+    """Algorithm as the reference spells it (a CleanRL exp_name, e.g. "ppo")."""
     env_id: str
     """Environment id the reference ran (env-version parity rule)."""
     entity: str = "openrlbenchmark"

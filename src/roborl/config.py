@@ -23,7 +23,7 @@ class ExperimentConfig:
     Future training scripts subclass this and add algorithm hyperparameters.
 
     Attributes:
-        exp_name: Short experiment name, e.g. ``"demo"`` or ``"dqn"``. First
+        exp_name: Short experiment name, e.g. ``"demo"`` or ``"sac"``. First
             component of the run name and W&B group.
         env_id: Gymnasium environment id, e.g. ``"CartPole-v1"``.
         seed: Seed for all RNGs (Python, NumPy, torch, environment).
