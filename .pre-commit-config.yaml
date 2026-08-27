@@ -1,0 +1,26 @@
+# Fast hygiene hooks only. mypy deliberately runs in `make check` and CI, not
+# here — it needs the project's full dependency environment, which pre-commit's
+# isolated hook environments would have to duplicate. See CONTRIBUTING.md.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-added-large-files
+        args: [--maxkb=500]
+        exclude: ^uv\.lock$  # the lockfile is legitimately >500 KB
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.4
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.9.24
+    hooks:
+      - id: uv-lock
