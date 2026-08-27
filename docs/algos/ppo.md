@@ -176,14 +176,27 @@ definition before anything else. `losses/policy_loss` magnitude is
 meaningless in PPO; watch trends. Details in
 [docs/telemetry.md](../telemetry.md).
 
-## Verification plan (lifecycle steps 5–6)
+## Verification results (lifecycle steps 5–6) — PASS on both referenced envs
 
-CartPole-v1, Acrobot-v1, LunarLander-v3 (issue #3), ≥5 seeds each, the
-hyperparameters above with zero overrides, 500k steps, compared against
-CleanRL `ppo.py` reference runs from `openrlbenchmark/cleanrl` via
-`roborl benchmark compare`. LunarLander needs the `box2d` extra; the
-reference ran LunarLander-v2, so env-version parity needs checking against
-what openrlbenchmark actually holds before that comparison counts.
+Ran 2026-08-27 at commit `4ed2bee`, 5 seeds per env (seeds 1–5), 500k steps
+each, CleanRL's default hyperparameters with zero overrides. Reference:
+6 CleanRL seeds per env from the `openrlbenchmark/cleanrl` W&B project.
+Final performance is IQM over the last 10% of training with 95% stratified
+bootstrap CIs; verdicts from `roborl benchmark compare`, reports committed
+under `benchmarks/reports/ppo/`.
+
+| Env | roborl IQM [95% CI] | CleanRL IQM [95% CI] | Verdict |
+|---|---|---|---|
+| CartPole-v1 | 488.9 [472.2, 498.5] | 495.4 [488.3, 498.8] | **PASS** |
+| Acrobot-v1 | −84.0 [−84.9, −82.8] | −84.6 [−86.3, −83.7] | **PASS** |
+| LunarLander-v3 | 26.7 [8.6, 40.7] | — none exist | **N/A** |
+
+LunarLander (issue #3's third env) has **no CleanRL `ppo` reference at
+all** — openrlbenchmark holds `ppo` runs only for CartPole-v1, Acrobot-v1,
+and MountainCar-v0, with neither LunarLander-v2 nor -v3 present. Our five
+tracked runs and their harness-computed stats are recorded in a hand-written
+no-verdict report (`benchmarks/reports/ppo/LunarLander-v3/report.md`)
+rather than given a verdict nothing supports.
 
 Sanity gate (step 4) passed: CartPole-v1 last-10 mean 295.9 at 60k steps
 (random ≈ 22; the 500 cap gets touched soon after, with the oscillation
