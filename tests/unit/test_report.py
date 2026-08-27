@@ -3,10 +3,15 @@
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import pytest
 
-from roborl.benchmark.report import decide_verdict, run_compare
+pd = pytest.importorskip("pandas", reason="benchmark extra not installed")
+pytest.importorskip("matplotlib", reason="benchmark extra not installed")
+
+from roborl.benchmark.report import (  # noqa: E402  (import valid only after the skip guard)
+    decide_verdict,
+    run_compare,
+)
 
 FIXTURE = Path(__file__).parent.parent / "fixtures" / "reference_synthetic.parquet"
 

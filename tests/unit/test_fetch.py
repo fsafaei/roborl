@@ -2,10 +2,15 @@
 
 from pathlib import Path
 
-import pandas as pd
 import pytest
 
-from roborl.benchmark.fetch import OpenRLBenchmarkAdapter, load_runs, to_curves
+pd = pytest.importorskip("pandas", reason="benchmark extra not installed")
+
+from roborl.benchmark.fetch import (  # noqa: E402  (import valid only after the skip guard)
+    OpenRLBenchmarkAdapter,
+    load_runs,
+    to_curves,
+)
 
 FIXTURE = Path(__file__).parent.parent / "fixtures" / "reference_synthetic.parquet"
 
