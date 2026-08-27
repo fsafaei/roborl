@@ -142,7 +142,16 @@ $\bar\phi \leftarrow \tau\phi + (1-\tau)\bar\phi$, τ = 0.005.
   `roborl.telemetry.metrics` constants (CleanRL's exact `losses/...` names).
 - **Two pure helpers factored out for unit-testing**: the squashed-Gaussian
   log-prob correction and the soft TD target. The loop stays top-to-bottom;
-  the math gets hand-computed fixtures per lifecycle step 2.
+  the math gets hand-computed fixtures per lifecycle step 2. One numerical
+  nit: the helper recomputes ``tanh(x_t)`` where CleanRL reuses a single
+  ``y_t`` node, so gradient accumulation order differs by ~1 ulp in float32
+  (verified equivalent to machine epsilon in float64) — same math, not
+  bitwise-identical training trajectories.
+- **Seeded warmup actions.** The random actions before ``learning_starts``
+  come from the seeded ``env.action_space``; CleanRL samples its *unseeded*
+  ``single_action_space`` there (a known reproducibility quirk of the
+  reference script). Strictly more reproducible, no behavioral difference
+  in expectation.
 
 ## Telemetry (mirrors CleanRL's SAC exactly, logged every 100 steps)
 
