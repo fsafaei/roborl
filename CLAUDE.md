@@ -25,7 +25,7 @@ uv run pytest tests/unit/test_stats.py -k iqm    # run a single test file / sele
 
 Extras: `uv sync --extra mujoco|box2d|benchmark`; `--extra cpu` (lean CPU
 torch, Linux CI) conflicts with `--extra cu130`. Never hand-edit `uv.lock`
-(`uv add`/`uv lock` only).
+(`uv add`/`uv lock` only); CI fails on a stale lockfile (`uv lock --check`).
 
 ## Architecture
 
@@ -53,7 +53,11 @@ against its CleanRL counterpart.
 - ruff (line 100, Google docstrings) + mypy; full type hints on public
   functions. Never weaken lint/type rules to get green — fix the code or add
   a narrowly scoped ignore with a one-line justification.
-- pytest markers: `unit`, `smoke`, `slow`. **No test touches the network**;
+- Code must stay Python 3.10-compatible (ruff `target-version = "py310"`;
+  CI tests 3.10 and 3.12 on Linux + macOS) — no 3.11+-only syntax.
+- pytest markers: `unit`, `smoke`, `slow`. Bare `uv run pytest` defaults to
+  `-m "unit or smoke"` via addopts; slow tests need `make test-all` or
+  `-m ""`. **No test touches the network**;
   W&B disabled/offline in tests and CI; reference data comes from committed
   fixtures.
 - Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `ci:`,
