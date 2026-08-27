@@ -25,6 +25,9 @@ def test_offline_mode_writes_locally(tmp_path: Path, monkeypatch: pytest.MonkeyP
     monkeypatch.setenv("WANDB_DIR", str(tmp_path))
     logger = RunLogger(ExperimentConfig(exp_name="logtest", track=True), resolved_device="cpu")
     logger.start()
+    # Regression: url is read on a live run at end-of-run summary time; the
+    # wandb 0.29 SDK dropped Run.get_url(), which only online/offline hit.
+    assert logger.url is None
     logger.log({"charts/episodic_return": 1.0}, step=1)
     logger.finish()
     offline_runs = list((tmp_path / "wandb").glob("offline-run-*"))

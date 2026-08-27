@@ -77,7 +77,7 @@ class RunLogger:
         """The W&B run URL, or None when not tracking / offline."""
         if self._run is None:
             return None
-        url: str | None = self._run.get_url()
+        url: str | None = self._run.url  # None in offline mode
         return url
 
     def start(self) -> None:
