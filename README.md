@@ -85,7 +85,7 @@ column. Nothing here is implemented yet; the infrastructure came first.
 
 | Algorithm | Envs | Status | Verified against | Report |
 |---|---|---|---|---|
-| SAC | Pendulum, MuJoCo | planned | CleanRL | — |
+| SAC | Pendulum, MuJoCo | implemented | CleanRL | — |
 | PPO (discrete) | CartPole, Acrobot, LunarLander | planned | CleanRL | — |
 | PPO (continuous) | Pendulum, MuJoCo | planned | CleanRL | — |
 | FlashSAC | MuJoCo, high-dimensional control | planned | published results ([Kim et al., 2026](https://arxiv.org/abs/2604.04539)) | — |
