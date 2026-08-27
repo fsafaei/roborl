@@ -25,6 +25,16 @@ SPS: Final = "charts/SPS"
 LEARNING_RATE: Final = "charts/learning_rate"
 
 # CleanRL-compatible (losses/) — logged by algorithms as they land.
+# SAC (mirrors sac_continuous_action.py; qf_loss is the mean of the two).
+QF1_VALUES: Final = "losses/qf1_values"
+QF2_VALUES: Final = "losses/qf2_values"
+QF1_LOSS: Final = "losses/qf1_loss"
+QF2_LOSS: Final = "losses/qf2_loss"
+QF_LOSS: Final = "losses/qf_loss"
+ACTOR_LOSS: Final = "losses/actor_loss"
+ALPHA: Final = "losses/alpha"
+ALPHA_LOSS: Final = "losses/alpha_loss"
+
 VALUE_LOSS: Final = "losses/value_loss"
 POLICY_LOSS: Final = "losses/policy_loss"
 ENTROPY: Final = "losses/entropy"
