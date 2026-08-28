@@ -1,8 +1,11 @@
-# PPO — Proximal Policy Optimization (discrete actions)
+# PPO — Proximal Policy Optimization
 
 Spec note per [algorithm-lifecycle.md](../algorithm-lifecycle.md) step 0.
-Written before the implementation; the "implementation details" section is
-the diffing checklist for verification debugging.
+Written before the implementation; the "implementation details" sections
+are the diffing checklist for verification debugging. The first part covers
+the discrete variant (`ppo.py`); the [continuous-actions
+section](#continuous-actions-ppo_continuous_actionpy) extends it with the 9
+continuous-control details (`ppo_continuous_action.py`).
 
 **Papers:** Schulman et al., *Proximal Policy Optimization Algorithms*
 (2017) — the clipped surrogate objective. Schulman et al., *High-Dimensional
@@ -209,3 +212,131 @@ that PPO solves the env.
 Sanity gate (step 4) passed: CartPole-v1 last-10 mean 295.9 at 60k steps
 (random ≈ 22; the 500 cap gets touched soon after, with the oscillation
 PPO is known for), locked in as a `slow`-marker test.
+
+---
+
+## Continuous actions (`ppo_continuous_action.py`)
+
+**Reference implementation:** CleanRL `ppo_continuous_action.py`
+([docs](https://docs.cleanrl.dev/rl-algorithms/ppo/#ppo_continuous_actionpy))
+— the MuJoCo variant. Ours lives in
+`src/roborl/algos/ppo/ppo_continuous.py`, one loop top to bottom, sharing
+the unit-tested objective math (GAE, clipped policy/value losses, explained
+variance) with the discrete module — same package, identical equations, so
+importing them is reuse of tested code, not a premature abstraction (ADR
+0003 applies across algorithm packages, not within one).
+
+Everything in the 13 core details and the loop mechanics above carries over
+unchanged (with the continuous default geometry substituted — see the
+hyperparameter table). What changes is the policy head and the environment
+preprocessing: Huang et al.'s **9 details for continuous action domains**,
+numbered C1–C9 in their order.
+
+### The continuous-control details
+
+1. **(C1) Continuous actions via a normal distribution.** The policy is a
+   Gaussian; actions are `Normal(mean, std).sample()` — unbounded,
+   unsquashed (contrast SAC's tanh-squashed Gaussian).
+2. **(C2) State-independent log std.** `actor_logstd` is a free
+   `nn.Parameter` of shape `(1, action_dim)` initialized to zeros (σ = 1
+   everywhere at init), expanded to the batch — *not* an output head of the
+   network. It is trained by the policy gradient like any other parameter.
+3. **(C3) Independent action components.** A diagonal Gaussian: per-dim
+   log-probs and entropies are **summed** over the action dimension
+   (`.sum(1)`), giving one scalar log-prob per action vector.
+4. **(C4) Separate mean and value MLPs.** Same 64-64 tanh geometry as
+   discrete; the mean head keeps the 0.01 orthogonal gain (near-zero
+   initial mean), value head 1.0.
+5. **(C5) Action clipping, unclipped storage.** The raw Gaussian sample can
+   exceed the `Box` bounds; the `ClipAction` wrapper clips what the env
+   executes, while the rollout buffer stores — and the update re-scores —
+   the **unclipped** sample (otherwise the log-prob wouldn't match the
+   distribution that produced it).
+6. **(C6) Observation normalization.** `NormalizeObservation` keeps running
+   mean/variance per sub-env and standardizes every observation — on
+   MuJoCo this is the single most impactful detail in Huang et al.'s
+   ablations.
+7. **(C7) Observation clipping** to [−10, 10] after normalization
+   (`TransformObservation`).
+8. **(C8) Reward scaling.** `NormalizeReward` divides rewards by the
+   running standard deviation of the *discounted return* (hence it needs
+   `gamma`) — scaling, not centering; the mean is left alone.
+9. **(C9) Reward clipping** to [−10, 10] after scaling (`TransformReward`).
+
+Wrapper order (innermost → outermost): `FlattenObservation` →
+`RecordEpisodeStatistics` → `ClipAction` → `NormalizeObservation` →
+`TransformObservation(clip ±10)` → `NormalizeReward(gamma)` →
+`TransformReward(clip ±10)`. `RecordEpisodeStatistics` sitting *below* the
+reward wrappers is what keeps `charts/episodic_return` in raw env units
+while the learner sees normalized rewards. The stack lives in the algorithm
+package (`make_continuous_env`), not `roborl.envs.factory`: it is a
+PPO-continuous implementation detail — SAC learns from raw observations and
+rewards.
+
+### Hyperparameters (CleanRL defaults — verification uses these exactly)
+
+Only the differences from the discrete table:
+
+| Hyperparameter | Value (discrete value) |
+|---|---|
+| total_timesteps | 1_000_000 (500_000) |
+| learning_rate | 3e-4 (2.5e-4) |
+| num_envs | 1 (4) |
+| num_steps | 2048 (128) → batch_size 2048 |
+| num_minibatches | 32 (4) → minibatch_size 64 |
+| update_epochs | 10 (4) |
+| ent_coef | 0.0 (0.01) |
+
+### Deviations from CleanRL (deliberate, semantics-preserving)
+
+All discrete-variant deviations apply (SAME_STEP autoreset, dict-format
+episode stats, shared infrastructure, factory-style per-env `seed + idx`
+seeding). Two additions:
+
+- **Gymnasium 1.x wrapper signature:** `TransformObservation` now requires
+  the resulting `observation_space` as a third argument; passed unchanged
+  (clipping doesn't alter the space). Same wrapper classes, same math.
+- **One extra reset observation in the normalization statistics.** The
+  factory-convention seeding reset inside the thunk feeds one observation
+  into `NormalizeObservation`'s running statistics before training starts;
+  CleanRL's single `envs.reset(seed=seed)` does not. One sample against a
+  million-step stream — statistically invisible, noted for completeness.
+
+### Sanity results (lifecycle step 4) — learns Pendulum-v1, parity-checked
+
+Pendulum-v1 has **no CleanRL `ppo_continuous_action` reference** in
+openrlbenchmark (checked 2026-08-28: 0 runs; HalfCheetah-v4 / Hopper-v4 /
+Walker2d-v4 have 9 each — those are the verification envs). PPO at these
+MuJoCo defaults (γ = 0.99, one env) is also known to learn Pendulum only
+slowly. So the step-4 gate is "learns well beyond random level," and the
+claim was parity-checked directly: CleanRL's own script, adapted only in
+the same env-API mechanics we already deviate by (SAME_STEP autoreset,
+dict `final_info`, 1.x `TransformObservation` signature), run at seed 1 for
+500k steps on CPU:
+
+| Implementation | last-10 mean @ 500k | 450–500k band mean |
+|---|---|---|
+| roborl `ppo_continuous` | **−762** | −787 |
+| CleanRL adapted (same seed/budget) | −952 | −990 |
+| random agent | ≈ −1230 | — |
+
+Same regime, ours slightly ahead on this seed — the slow learning is a
+property of the reference hyperparameters, not a port bug. Locked in as a
+`slow`-marker test (`tests/slow/test_ppo_continuous_pendulum.py`, gate
+last-10 mean > −1000 at 500k).
+
+### Verification status (lifecycle steps 5–6)
+
+Pending: 5 seeds × 1M steps on HalfCheetah-v4, Hopper-v4, and Walker2d-v4
+against the 9 CleanRL reference runs per env, `roborl benchmark compare`,
+reports under `benchmarks/reports/ppo_continuous_action/`.
+
+### Telemetry
+
+Identical metric set to the discrete variant (CleanRL logs the same names
+from both scripts), logged once per iteration plus per-episode returns.
+Continuous-specific reading: `losses/entropy` now reports the Gaussian's
+differential entropy (can be negative; drifts with `actor_logstd`), and
+with `ent_coef = 0` it is purely diagnostic — falling entropy is the policy
+committing, collapsing-to-floor entropy early usually means the learning
+rate or advantage scale is off.

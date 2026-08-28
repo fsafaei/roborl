@@ -15,6 +15,7 @@ from typing import Annotated
 import tyro
 
 from roborl.algos.ppo.ppo import PpoConfig, run_ppo
+from roborl.algos.ppo.ppo_continuous import PpoContinuousConfig, run_ppo_continuous
 from roborl.algos.sac.sac import SacConfig, run_sac
 from roborl.demo import DemoConfig, run_demo
 
@@ -111,12 +112,21 @@ def _run_benchmark(args: BenchmarkArgs) -> None:
 def main() -> None:
     """Parse the subcommand, run it, and print its summary."""
     config = tyro.extras.subcommand_cli_from_dict(
-        {"demo": DemoConfig, "sac": SacConfig, "ppo": PpoConfig, "benchmark": BenchmarkArgs},
+        {
+            "demo": DemoConfig,
+            "sac": SacConfig,
+            "ppo": PpoConfig,
+            "ppo-continuous": PpoContinuousConfig,
+            "benchmark": BenchmarkArgs,
+        },
         description="roborl — learning RL for robotics by building it.",
         config=(tyro.conf.OmitSubcommandPrefixes,),
     )
     if isinstance(config, SacConfig):
         print(run_sac(config).render())
+    elif isinstance(config, PpoContinuousConfig):
+        # Before PpoConfig: the continuous config subclasses the discrete one.
+        print(run_ppo_continuous(config).render())
     elif isinstance(config, PpoConfig):
         print(run_ppo(config).render())
     elif isinstance(config, DemoConfig):
