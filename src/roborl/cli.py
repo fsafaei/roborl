@@ -81,10 +81,33 @@ class BenchmarkWandbReportArgs:
     """Metric keys plotted per environment section."""
 
 
+@dataclass(frozen=True)
+class BenchmarkWandbWorkspaceArgs:
+    """Create a saved W&B workspace view for one experiment's tracked runs."""
+
+    algo: str
+    """Our exp_name for the experiment (e.g. "sac", "flashsac")."""
+    name: str | None = None
+    """View name (default: the algo). W&B forbids emoji here."""
+    entity: str | None = None
+    """W&B entity holding our runs (default: the API's default entity)."""
+    project: str = "roborl"
+    """W&B project holding our runs."""
+    metrics: list[str] = field(
+        default_factory=lambda: [
+            "charts/episodic_return",
+            "charts/episodic_length",
+            "charts/SPS",
+        ]
+    )
+    """Metric keys to plot; panels are sectioned by namespace prefix."""
+
+
 BenchmarkCommand = (
     Annotated[BenchmarkFetchArgs, tyro.conf.subcommand("fetch")]
     | Annotated[BenchmarkCompareArgs, tyro.conf.subcommand("compare")]
     | Annotated[BenchmarkWandbReportArgs, tyro.conf.subcommand("report-wandb")]
+    | Annotated[BenchmarkWandbWorkspaceArgs, tyro.conf.subcommand("workspace-wandb")]
 )
 
 
@@ -100,7 +123,7 @@ def _run_benchmark(args: BenchmarkArgs) -> None:
     try:
         from roborl.benchmark.fetch import OpenRLBenchmarkAdapter
         from roborl.benchmark.report import run_compare
-        from roborl.benchmark.wandb_report import build_report
+        from roborl.benchmark.wandb_report import build_report, build_workspace
     except ImportError as error:
         raise SystemExit(
             "The benchmark harness needs the 'benchmark' extra:\n"
@@ -109,7 +132,16 @@ def _run_benchmark(args: BenchmarkArgs) -> None:
         ) from error
 
     command = args.command
-    if isinstance(command, BenchmarkWandbReportArgs):
+    if isinstance(command, BenchmarkWandbWorkspaceArgs):
+        url = build_workspace(
+            algo=command.algo,
+            entity=command.entity,
+            project=command.project,
+            metrics=command.metrics,
+            name=command.name,
+        )
+        print(f"workspace view: {url}")
+    elif isinstance(command, BenchmarkWandbReportArgs):
         url = build_report(
             algo=command.algo,
             env_ids=command.env_ids,

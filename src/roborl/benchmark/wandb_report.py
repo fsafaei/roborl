@@ -122,3 +122,66 @@ def build_report(
     report.save()
     url: str = report.url
     return url
+
+
+def build_workspace(
+    algo: str,
+    entity: str | None,
+    project: str,
+    metrics: list[str],
+    name: str | None = None,
+) -> str:
+    """Create a saved W&B workspace view for one experiment's runs.
+
+    The view filters the project's runs to ``config.exp_name == algo`` and
+    groups them by ``config.env_id``, so every panel shows one aggregated
+    curve per environment. Panels are bucketed into sections by metric
+    namespace (``charts/``, ``losses/``, ``diagnostics/``, ...).
+
+    Args:
+        algo: Our ``exp_name`` for the experiment.
+        entity: W&B entity; None uses the API default.
+        project: W&B project holding the runs.
+        metrics: Metric keys to plot, sectioned by their namespace prefix.
+        name: View name (default ``"<algo>"``). W&B forbids emoji here.
+
+    Returns:
+        The saved view's URL.
+
+    Raises:
+        ValueError: If no entity is given and the API has no default.
+    """
+    import wandb_workspaces.workspaces as ws
+
+    resolved_entity = entity or wandb.Api().default_entity
+    if not resolved_entity:
+        raise ValueError("No W&B entity: pass --entity or log in so the API has a default.")
+
+    sections: dict[str, list[str]] = {}
+    for metric in metrics:
+        namespace = metric.split("/", 1)[0] if "/" in metric else "misc"
+        sections.setdefault(namespace, []).append(metric)
+
+    workspace = ws.Workspace(
+        entity=resolved_entity,
+        project=project,
+        name=name or algo,
+        sections=[
+            ws.Section(
+                name=namespace,
+                panels=[
+                    wr.LinePlot(x="global_step", y=[metric], title=metric)
+                    for metric in section_metrics
+                ],
+                is_open=(namespace == "charts"),
+            )
+            for namespace, section_metrics in sections.items()
+        ],
+        runset_settings=ws.RunsetSettings(
+            filters=[expr.Config("exp_name") == algo],
+            groupby=[expr.Config("env_id")],
+        ),
+    )
+    workspace.save()
+    url: str = workspace.url
+    return url

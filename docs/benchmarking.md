@@ -95,3 +95,12 @@ evidence; verdicts only ever come from `compare`. Current reports:
 - [FlashSAC results](https://wandb.ai/fsafaei/roborl/reports/FlashSAC-results--VmlldzoxNzgyNjA5Nw==)
   (fills in live while the verification campaign runs; includes the
   `diagnostics/` bounded-norm panels and the SAC baseline overlay)
+
+`roborl benchmark workspace-wandb` additionally saves one **workspace
+view** per experiment on the project's runs page — runs filtered to the
+algorithm and grouped by `env_id`, panels sectioned by metric namespace:
+
+- [SAC view](https://wandb.ai/fsafaei/roborl?nw=tijcpaozy47)
+- [PPO (discrete) view](https://wandb.ai/fsafaei/roborl?nw=olbo340c8wy)
+- [PPO (continuous) view](https://wandb.ai/fsafaei/roborl?nw=3wmwgm5mdsn)
+- [FlashSAC view](https://wandb.ai/fsafaei/roborl?nw=i0pn8lj2939)
