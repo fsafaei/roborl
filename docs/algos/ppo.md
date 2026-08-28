@@ -176,11 +176,12 @@ definition before anything else. `losses/policy_loss` magnitude is
 meaningless in PPO; watch trends. Details in
 [docs/telemetry.md](../telemetry.md).
 
-## Verification results (lifecycle steps 5–6) — PASS on both referenced envs
+## Verification results (lifecycle steps 5–6) — PASS on all three referenced envs
 
-Ran 2026-08-27 at commit `4ed2bee`, 5 seeds per env (seeds 1–5), 500k steps
-each, CleanRL's default hyperparameters with zero overrides. Reference:
-6 CleanRL seeds per env from the `openrlbenchmark/cleanrl` W&B project.
+Ran 2026-08-27 at commit `4ed2bee` (MountainCar-v0: 2026-08-28 at
+`f9be429`), 5 seeds per env (seeds 1–5), 500k steps each, CleanRL's default
+hyperparameters with zero overrides. Reference: 6 CleanRL seeds per env
+from the `openrlbenchmark/cleanrl` W&B project.
 Final performance is IQM over the last 10% of training with 95% stratified
 bootstrap CIs; verdicts from `roborl benchmark compare`, reports committed
 under `benchmarks/reports/ppo/`.
@@ -189,6 +190,7 @@ under `benchmarks/reports/ppo/`.
 |---|---|---|---|
 | CartPole-v1 | 488.9 [472.2, 498.5] | 495.4 [488.3, 498.8] | **PASS** |
 | Acrobot-v1 | −84.0 [−84.9, −82.8] | −84.6 [−86.3, −83.7] | **PASS** |
+| MountainCar-v0 | −200.0 [−200.0, −200.0] | −200.0 [−200.0, −200.0] | **PASS** |
 | LunarLander-v3 | 26.7 [8.6, 40.7] | — none exist | **N/A** |
 
 LunarLander (issue #3's third env) has **no CleanRL `ppo` reference at
@@ -196,7 +198,13 @@ all** — openrlbenchmark holds `ppo` runs only for CartPole-v1, Acrobot-v1,
 and MountainCar-v0, with neither LunarLander-v2 nor -v3 present. Our five
 tracked runs and their harness-computed stats are recorded in a hand-written
 no-verdict report (`benchmarks/reports/ppo/LunarLander-v3/report.md`)
-rather than given a verdict nothing supports.
+rather than given a verdict nothing supports. MountainCar-v0 (the
+reference's actual third env) stands in as the third verified comparison —
+a floor-match PASS: CleanRL's `ppo.py` never solves MountainCar at these
+hyperparameters (sparse reward, no exploration mechanism), so both sides
+sit exactly at the −200 time-limit floor. That certifies "we reproduce the
+reference's behavior," which is precisely what verification claims — not
+that PPO solves the env.
 
 Sanity gate (step 4) passed: CartPole-v1 last-10 mean 295.9 at 60k steps
 (random ≈ 22; the 500 cap gets touched soon after, with the oscillation
