@@ -128,10 +128,11 @@ def cosine_lr(
 ) -> float:
     """Linear warmup then cosine decay, per *gradient update* of one optimiser.
 
-    ``total_updates`` is the number of updates *this* optimiser will take
-    over the run — the actor and temperature step every
-    ``actor_update_period``-th update, so their schedules are built on
-    their own (smaller) budgets and still end exactly at ``end``.
+    ``total_updates`` is the SHARED horizon — total env steps times the
+    update-to-data ratio — for all three optimisers, per the reference.
+    Each optimiser advances its own ``update_step`` through it, so the
+    actor and temperature (stepping every ``actor_update_period``-th
+    update) end mid-cosine rather than at ``end``.
 
     Args:
         update_step: Completed updates of this optimiser (0-based).
@@ -144,10 +145,10 @@ def cosine_lr(
     Returns:
         The learning rate for this update.
     """
-    warmup = warmup_rate * total_updates
+    warmup = int(warmup_rate * total_updates)
     if update_step < warmup:
         return init + (peak - init) * update_step / warmup
-    progress = (update_step - warmup) / max(total_updates - warmup, 1.0)
+    progress = (update_step - warmup) / max(total_updates - warmup, 1)
     progress = min(progress, 1.0)
     return end + (peak - end) * 0.5 * (1.0 + math.cos(math.pi * progress))
 
@@ -239,6 +240,11 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
     # Full copy at construction only; from here the EMA touches parameters
     # exclusively and the target's BatchNorm stats evolve on their own.
     target_critic = copy.deepcopy(critic)
+    # The reference normalizes at init too: orthogonal init only gives unit
+    # rows where out_features <= in_features, so wide layers start off-manifold.
+    actor.normalize_parameters()
+    critic.normalize_parameters()
+    target_critic.normalize_parameters()
     temperature = Temperature(config.alpha_init).to(device)
     h_target = entropy_target(act_dim, config.sigma_tgt)
     bin_values = critic.bin_values.view(-1)
@@ -246,10 +252,12 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
     critic_opt = optim.Adam(critic.parameters(), lr=config.lr_peak)
     actor_opt = optim.Adam(actor.parameters(), lr=config.lr_peak)
     temp_opt = optim.Adam(temperature.parameters(), lr=config.lr_peak)
-    # Per-optimiser budgets: updates happen on steps with global_step >
-    # learning_starts; actor and temperature step every Nth of those.
-    critic_total = max(config.total_timesteps - config.learning_starts - 1, 1)
-    actor_total = max(math.ceil(critic_total / config.actor_update_period), 1)
+    # ONE shared schedule horizon (total env steps x UTD), per the reference;
+    # each optimiser advances its own step counter through it. The actor and
+    # temperature step every actor_update_period-th update, so they end
+    # mid-cosine (~2.25e-4 at the defaults) — that is the reference's
+    # behaviour, not a bug (Pass B diff, docs/algos/flashsac.md).
+    schedule_total = config.total_timesteps
 
     rb = ReplayBuffer(config.buffer_size, env.observation_space.shape, env.action_space.shape)
     reward_normalizer = RewardNormalizer(config.gamma, num_envs=1, g_max=config.g_max)
@@ -302,69 +310,28 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
         if global_step > config.learning_starts:
             data = rb.sample(config.batch_size, device)
             r_norm = reward_normalizer.normalize(data.rewards)
+            obs_all = torch.cat([data.observations, data.next_observations], dim=0)
 
-            # --- distributional TD target, everything under no_grad ---
-            with torch.no_grad():
-                a_next, logp_next = actor(data.next_observations, training=False)
-                alpha = temperature()  # read INSIDE no_grad: pitfall 7
-                ent_term = alpha * logp_next
-                # Cross-batch: ONE train-mode pass over both halves so
-                # Q(s,a) and Q(s',a') share normalisation statistics.
-                obs_all = torch.cat([data.observations, data.next_observations], dim=0)
-                act_all = torch.cat([data.actions, a_next], dim=0)
-                q_all, logp_all = target_critic(obs_all, act_all, training=True)
-                q_next = q_all.chunk(2, dim=1)[1]
-                logp_next_d = logp_all.chunk(2, dim=1)[1]
-                log_p = select_min_member(q_next, logp_next_d)
-                m, clamp_fraction = categorical_td_target(
-                    log_p, r_norm, data.dones, ent_term, bin_values, config.gamma
-                )
-
-            # --- critic: cross-entropy on the same concatenated batch ---
-            q_pred_all, logp_pred_all = critic(obs_all, act_all, training=True)
-            log_p_sa = logp_pred_all.chunk(2, dim=1)[0]
-            ce = -(m.unsqueeze(0) * log_p_sa).sum(dim=-1)
-            assert ce.shape == (critic.ensemble_size, config.batch_size)
-            critic_loss = ce.mean()
-
-            lr_now = cosine_lr(
-                update_step,
-                critic_total,
-                config.lr_init,
-                config.lr_peak,
-                config.lr_end,
-                config.warmup_rate,
-            )
-            for group in critic_opt.param_groups:
-                group["lr"] = lr_now
-            critic_opt.zero_grad()
-            critic_loss.backward()
-            critic_opt.step()
-            critic.normalize_parameters()
-
-            # --- target EMA: parameters ONLY, never BatchNorm buffers ---
-            with torch.no_grad():
-                for p_t, p in zip(target_critic.parameters(), critic.parameters(), strict=True):
-                    p_t.lerp_(p, config.tau)
-
-            # --- actor + temperature, every actor_update_period-th update ---
+            # --- actor + temperature FIRST, every actor_update_period-th
+            # update; the critic update below then sees the updated actor
+            # and temperature, exactly as the reference orders it ---
             if update_step % config.actor_update_period == 0:
-                # Cross-batch again so the actor's BatchNorm sees the same
+                # Cross-batch so the actor's BatchNorm sees the same
                 # mixture of current and next observations.
                 a_all, logp_all_pi = actor(obs_all, training=True)
                 a_pi = a_all.chunk(2, dim=0)[0]
                 logp = logp_all_pi.chunk(2, dim=0)[0]
                 # Freeze critic PARAMETERS (not no_grad): the actor gradient
                 # must flow through a_pi into the critic. BN-eval here is the
-                # deliberate asymmetry against the critic loss above.
+                # deliberate asymmetry against the critic loss below.
                 critic.requires_grad_(False)
                 q_pi, _ = critic(data.observations, a_pi, training=False)
                 critic.requires_grad_(True)
-                actor_loss = (alpha * logp - q_pi.min(dim=0).values).mean()
+                actor_loss = (temperature().detach() * logp - q_pi.min(dim=0).values).mean()
 
                 actor_lr = cosine_lr(
                     actor_step,
-                    actor_total,
+                    schedule_total,
                     config.lr_init,
                     config.lr_peak,
                     config.lr_end,
@@ -387,6 +354,49 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
                 temp_opt.step()
                 alpha_loss_val = alpha_loss.item()
                 actor_step += 1
+
+            # --- distributional TD target, everything under no_grad ---
+            with torch.no_grad():
+                a_next, logp_next = actor(data.next_observations, training=False)
+                alpha = temperature()  # read INSIDE no_grad: pitfall 7
+                ent_term = alpha * logp_next
+                # Cross-batch: ONE train-mode pass over both halves so
+                # Q(s,a) and Q(s',a') share normalisation statistics.
+                act_all = torch.cat([data.actions, a_next], dim=0)
+                q_all, logp_all = target_critic(obs_all, act_all, training=True)
+                q_next = q_all.chunk(2, dim=1)[1]
+                logp_next_d = logp_all.chunk(2, dim=1)[1]
+                log_p = select_min_member(q_next, logp_next_d)
+                m, clamp_fraction = categorical_td_target(
+                    log_p, r_norm, data.dones, ent_term, bin_values, config.gamma
+                )
+
+            # --- critic: cross-entropy on the same concatenated batch ---
+            q_pred_all, logp_pred_all = critic(obs_all, act_all, training=True)
+            log_p_sa = logp_pred_all.chunk(2, dim=1)[0]
+            ce = -(m.unsqueeze(0) * log_p_sa).sum(dim=-1)
+            assert ce.shape == (critic.ensemble_size, config.batch_size)
+            critic_loss = ce.mean()
+
+            lr_now = cosine_lr(
+                update_step,
+                schedule_total,
+                config.lr_init,
+                config.lr_peak,
+                config.lr_end,
+                config.warmup_rate,
+            )
+            for group in critic_opt.param_groups:
+                group["lr"] = lr_now
+            critic_opt.zero_grad()
+            critic_loss.backward()
+            critic_opt.step()
+            critic.normalize_parameters()
+
+            # --- target EMA: parameters ONLY, never BatchNorm buffers ---
+            with torch.no_grad():
+                for p_t, p in zip(target_critic.parameters(), critic.parameters(), strict=True):
+                    p_t.lerp_(p, config.tau)
 
             if update_step % 100 == 0:
                 with torch.no_grad():

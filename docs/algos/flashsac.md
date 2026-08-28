@@ -135,6 +135,10 @@ forward passes — never copied, never EMA'd.
 
 ### Actor + temperature (every 2nd update — a plain skip, not compensated)
 
+**Order (Pass B correction): the actor and temperature update runs *before*
+the critic update**, so the critic's target is built with the just-updated
+actor and temperature. Pass A had this reversed.
+
 Cross-batch through the **actor** (BN-train) over `cat([s, s'], 0)`, keep
 the first half `a_π, log π`. Critic *parameters* frozen with
 `requires_grad_(False)` around a BN-**eval** critic call (gradient flows
@@ -158,12 +162,16 @@ After each actor / temperature step: scheduler step + (actor)
 
 ### Learning-rate schedule
 
-All three optimisers (Adam, PyTorch defaults, no weight decay), stepped per
-*gradient update*: linear warmup 3e-4 → 3e-4 over `1e-6 · total_updates`
-steps (effectively none), then cosine decay to 1.5e-4 over the full update
-budget. **No gradient clipping anywhere** — the paper's "gradient norm
-bounding" is a consequence of the weight and feature norm constraints, not
-an explicit clip; `diagnostics/grad_norm` shows it stays bounded.
+All three optimisers (Adam, PyTorch defaults, no weight decay) share **one
+schedule horizon**: `decay_steps = total env steps × UTD`, with
+`warmup_steps = int(1e-6 · decay_steps)` (≤ 1 step — effectively none),
+cosine 3e-4 → 1.5e-4. Each optimiser steps its *own* scheduler per its own
+gradient update, so the critic ends at ~1.5e-4 while the actor and
+temperature — stepping every 2nd update — end **mid-cosine at ~2.25e-4**.
+That is the reference's behaviour (Pass B, ambiguity row 16), not a bug.
+**No gradient clipping anywhere** — the paper's "gradient norm bounding" is
+a consequence of the weight and feature norm constraints, not an explicit
+clip; `diagnostics/grad_norm` shows it stays bounded.
 
 ## Adaptive reward scaling
 
@@ -254,8 +262,11 @@ paper itself does not print most of these values.
    `requires_grad_(False)` in the actor loss (not `no_grad` — the actor
    gradient must flow *through* the action into the critic); `α.detach()`
    in the actor loss and `log π` detached in the temperature loss.
-5. **`normalize_parameters()` after `optimizer.step()`, under `no_grad`,
-   in-place** — inside the graph it corrupts Adam state. `β` starts at
+5. **`normalize_parameters()` at construction and after every
+   `optimizer.step()`, under `no_grad`, in-place** — inside the graph it
+   corrupts Adam state. The init call matters: orthogonal init only gives
+   unit rows where `out ≤ in`, so wide layers start off-manifold
+   (Pass B finding). `β` starts at
    zeros, so after the first update the joint `[γ; β]` rescale fixes its
    norm regardless of magnitude; that is genuinely what the reference does
    (flagged in the Pass B diff, not "fixed").
@@ -325,30 +336,53 @@ implementation are marked *(added in Pass A)*.
 
 | # | Paper is silent on | Resolution encoded in Pass A | Confidence |
 |---|---|---|---|
-| 1 | How `min` over two *distributional* critics is taken | argmin on expected value, then gather that member's whole distribution | high — read from reference |
-| 2 | Whether the entropy bonus enters the distributional target | yes, as a shift of every atom by `−α·log π` | high |
-| 3 | Inverted-bottleneck expansion factor | 4 | high |
-| 4 | Exact order inside the residual block | `w1 → BN → ReLU → w2 → BN → ReLU → + residual`, no post-add activation | high |
-| 5 | `log_std` bounds and parameterisation | tanh-squashed into [-10, 2] | high |
-| 6 | Optimiser, betas, weight decay | Adam, PyTorch defaults, no weight decay | high |
-| 7 | Gradient clipping | none; norm bounding is implicit via weight and feature constraints | high — easy to misread from the abstract |
-| 8 | Whether the actor also uses BatchNorm | yes, same block stack, narrower | high |
-| 9 | Whether target EMA covers BatchNorm buffers | no, parameters only | high |
-| 10 | Truncation vs termination in the target | `terminated` only in the target; `terminated or truncated` in the reward accumulator | high |
-| 11 | Running statistics for adaptive reward scaling | discounted-return accumulator + Chan parallel variance; `G_max_seen` running max | high |
-| 12 | Evaluation protocol | deterministic `tanh(mean)`, exploration noise off | high |
-| 13 | Observation normalisation | the embedder's leading BatchNorm; nothing else | medium — inferred from architecture |
-| 14 | Seed count and aggregation in the paper's results | bootstrap CIs shown; seed count not stated — we do not cite one | low |
-| 15 | n-step semantics under mid-window truncation | reference uses `gamma ** n` unconditionally (approximation); not exercised at n_step = 1 | medium |
-| 16 | Which update count parameterises each optimiser's LR schedule *(added in Pass A)* | each optimiser's **own** budget (actor and temperature step every `actor_update_period`-th update, so their cosine runs over `ceil(N/2)` steps) — all three end exactly at 1.5e-4 | medium — the alternative (all schedules on the critic's budget) leaves the actor mid-cosine at ~2.25e-4 |
+| 1 | How `min` over two *distributional* critics is taken | argmin on expected value, then gather that member's whole distribution | **Pass B: confirmed** (`_select_min_q_log_probs`) |
+| 2 | Whether the entropy bonus enters the distributional target | yes, as a shift of every atom by `−α·log π` | **Pass B: confirmed** (`_compute_categorical_td_target`, variable `actor_entropy` holds `α·log π`) |
+| 3 | Inverted-bottleneck expansion factor | 4 | **Pass B: confirmed** |
+| 4 | Exact order inside the residual block | `w1 → BN → ReLU → w2 → BN → ReLU → + residual`, no post-add activation | **Pass B: confirmed** (`FlashSACBlock`) |
+| 5 | `log_std` bounds and parameterisation | tanh-squashed into [-10, 2] | **Pass B: confirmed** (`NormalTanhPolicy`) |
+| 6 | Optimiser, betas, weight decay | Adam, PyTorch defaults, no weight decay | **Pass B: confirmed** (`fused=True` on CUDA only — numerics-equivalent) |
+| 7 | Gradient clipping | none; norm bounding is implicit via weight and feature constraints | **Pass B: confirmed** (no clip anywhere in `update.py`) |
+| 8 | Whether the actor also uses BatchNorm | yes, same block stack, narrower | **Pass B: confirmed** |
+| 9 | Whether target EMA covers BatchNorm buffers | no, parameters only | **Pass B: confirmed** (`torch._foreach_lerp_` over `parameters()`) |
+| 10 | Truncation vs termination in the target | `terminated` only in the target; `terminated or truncated` in the reward accumulator | **Pass B: confirmed** (`batch["terminated"]` in the target; `logical_or` in `_update_reward_stats`) |
+| 11 | Running statistics for adaptive reward scaling | discounted-return accumulator + Chan parallel variance; `G_max_seen` running max | **Pass B: confirmed**, incl. the accumulator zeroing the *prior* return on the done step; reference adds a var-init-1 / 1e-4 count-epsilon regulariser we deliberately omit (≤1e-4 transient) |
+| 12 | Evaluation protocol | deterministic `tanh(mean)`, exploration noise off | **Pass B: confirmed** (`temperature == 0.0` path leaves noise state untouched) |
+| 13 | Observation normalisation | the embedder's leading BatchNorm; nothing else | **Pass B: confirmed** (no obs wrapper in `create_vec_env`) |
+| 14 | Seed count and aggregation in the paper's results | bootstrap CIs shown; seed count not stated — we do not cite one | low; `run_mujoco.sh` uses 5 seeds (0,1000,2000,3000,4000) — the repo's recipe, still not a paper claim |
+| 15 | n-step semantics under mid-window truncation | reference uses `gamma ** n` unconditionally (approximation); not exercised at n_step = 1 | **Pass B: confirmed** (`update_critic` passes `gamma**n_step`; the buffer stops reward accumulation at done but the discount power is fixed) |
+| 16 | Which update count parameterises each optimiser's LR schedule *(added in Pass A)* | Pass A guessed per-optimiser budgets (all ending at 1.5e-4) | **Pass B: WRONG — fixed.** One shared horizon `decay_steps = total env steps × UTD` for all three; each steps per its own update, so actor and temperature end mid-cosine at ~2.25e-4 |
 
 ## Pass B diff table
 
-*(To be completed in Phase 5: component-by-component diff against
-`github.com/Holiday-Robot/FlashSAC` — networks, target construction, loss,
-schedules, buffer, reward normaliser, exploration. Verdicts: matched /
-deviation, deliberate / deviation, bug — fixed.)*
+Component-by-component diff against `github.com/Holiday-Robot/FlashSAC`
+(cloned 2026-08-28, default branch), performed after Pass A passed its unit
+tests, CPU smoke test, and the Pendulum sanity gate. Reference files:
+`flash_rl/agents/flashSAC/{agent,network,layer,update}.py`,
+`flash_rl/agents/utils/{reward_normalization,network,scheduler,distribution}.py`,
+`flash_rl/buffers/torch_buffer.py`, `flash_rl/envs/__init__.py`,
+`configs/{flashSAC_base,agent/flashSAC,env/mujoco}.yaml`, `train.py`,
+`scripts/run_mujoco.sh`.
 
 | Component | Reference | Ours | Verdict |
 |---|---|---|---|
-| *(pending Pass B)* | | | |
+| `UnitLinear` / `UnitBatchNorm` / `UnitRMSNorm` | bias-free orthogonal linear; BN momentum 0.01 eps 1e-5 via `F.batch_norm`; RMSNorm eps 1e-6; joint `[γ;β]` → `√d`, rows → 1, RMS weight → `√d`, all eps 1e-8 | identical | **matched** |
+| Ensemble layers | einsum linear, per-member orthogonal; hand-rolled per-member BN (`lerp_` running stats, unbiased running var, biased normalisation); manual RMSNorm | einsum identical; BN as one flattened `F.batch_norm` over `E·d` channels — same statistics, verified against a single-member BN in tests; RMSNorm via `F.rms_norm` + per-member weight | **matched** (different code, same math) |
+| Blocks / embedder / trunk order | BN-first embedder; `w1→BN→ReLU→w2→BN→ReLU→+res`; trunk `embed → blocks → RMSNorm → head` | identical | **matched** |
+| Actor head | separate `UnitLinear` + free bias for mean/std; log_std tanh-squashed [-10, 2]; `2(log2 − u − softplus(−2u))` correction; log-prob `(B,)`; no action rescaling | identical | **matched** |
+| Critic head | ensemble linear + free bias `(E, n)`; log_softmax; Q = expectation over `linspace(v_min, v_max, 101)` | identical | **matched** |
+| Parameter init | orthogonal, then **`normalize_parameters()` on actor, critic, and target at construction** | Pass A skipped the init normalisation — wide layers started off-manifold | **deviation, bug — fixed** (loop now normalizes all three at init; regression test added) |
+| Distributional target | fresh `a'` BN-eval under `no_grad`; α read inside; cross-batch target critic BN-train; chunk[1]; argmin-then-gather; `r + γⁿ(z − α·logπ)(1−d)` with `d = terminated`; clamp; mass-conserving two-point split | identical (we additionally clamp `l` — float-safety only — and return the pre-clamp support-violation fraction as a diagnostic) | **matched** |
+| Critic loss | cross-batch online critic BN-train, chunk[0], CE vs projected target, mean over `(E, B)` | identical | **matched** |
+| Actor loss | cross-batch actor BN-train; first half; critic params frozen via `requires_grad_(False)`, BN-eval; `(α_detached·logπ − min Q)`; optional BC term `bc_alpha` (0.0 in the MuJoCo recipe) | identical; BC term not implemented | **matched** (BC omission: deliberate, coefficient is 0 in the target recipe) |
+| Temperature loss | `α · (H_detached − H_target)`, `H_target = 0.5·A·log(2πe·σ²)`, α init 0.01 | identical | **matched** |
+| **Update order** | **actor + temperature first** (every 2nd update), then critic — whose target uses the *updated* actor and α — then target EMA | Pass A ran critic first | **deviation, bug — fixed** (loop reordered) |
+| Target EMA | `torch._foreach_lerp_` over `parameters()` only, τ = 0.01; full `load_state_dict` copy at construction | per-parameter `lerp_`, same semantics | **matched** |
+| **LR schedule** | one `warmup_cosine_decay` (optax-style) with shared `warmup = int(1e-6·N)`, `decay_steps = N = total env steps × UTD`; each optimiser's `LambdaLR` steps per its own update → actor/temp end mid-cosine ~2.25e-4 | Pass A gave each optimiser its own budget ending at 1.5e-4 | **deviation, bug — fixed** (shared horizon; ambiguity row 16 adjudicated) |
+| Reward normaliser | `G = γ(1−(term∨trunc))G + r` (prior return zeroed on the done step); `G_max_seen` from the *new* G; stats on every collected transition incl. warmup; raw storage, batch-time division by `max(√(var+1e-8), G_max_seen/5)`; `RunningMeanStd` inits var=1 with a 1e-4 count-epsilon | identical semantics; clean Chan update (var init 0, no count-epsilon) | **matched**, one **deviation, deliberate**: no 1e-4 regulariser (≤1e-4 transient on the variance before ~100 samples; our fixtures verify exact statistics) |
+| Exploration noise | candidate `randn` + Zeta draw *every* step, applied via `torch.where(reinit, …)` (CUDA-graph style); run length shared, noise per-env; count/reinit semantics; eval path (`T=0`) leaves state untouched | draw only on reinit — same distribution over used noise, different RNG-stream consumption | **matched** (semantics; implementation detail differs) |
+| Replay buffer | torch ring buffer, float64→float32 enforced, stores terminated and truncated, n-step machinery (n=1 in this recipe), uniform sampling with replacement, `min_length` 10k | NumPy ring buffer (SAC's), float32, terminated only stored (truncated unused in the n=1 update path), same sampling | **matched** at n_step = 1 (n-step machinery deliberately deferred) |
+| Warmup / update cadence | random actions until buffer ≥ 10k, then 1 update per env step; first update on the step the buffer fills | random actions for `learning_starts` steps, updates from `global_step > learning_starts` — one update later | **matched** (boundary differs by one update in ~990k) |
+| Env stack | `RescaleAction(env, float32(±1))`, `TimeLimit` (default 1000), seeded obs/action spaces, true `final_obs` stored at episode end (autoreset vector env + patch) | same wrapper and bounds; single non-autoresetting env with explicit `reset()` gives the same data stream | **matched** |
+| Evaluation | separate eval env, 50 deterministic episodes every N/10 steps + video | training episodic returns only, per this repo's SAC methodology; deterministic-eval *path* implemented (`eval_action`) but not scheduled | **deviation, deliberate** (verification compares training curves against our SAC baseline collected the same way) |
+| Infrastructure | `torch.compile` + optional fp16 AMP (`use_amp=false` in the MuJoCo recipe), fused Adam on CUDA | neither | **deviation, deliberate** (performance only; AMP is off in the target recipe anyway) |

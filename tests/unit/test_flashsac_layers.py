@@ -329,3 +329,15 @@ class TestTemperatureAndEntropyTarget:
         assert math.isclose(entropy_target(1), per_dim, rel_tol=1e-12)
         assert math.isclose(entropy_target(6), 6 * per_dim, rel_tol=1e-12)
         assert math.isclose(entropy_target(6), -2.8691, abs_tol=5e-4)
+
+
+@pytest.mark.unit
+def test_orthogonal_init_needs_the_init_normalization() -> None:
+    # Where out_features > in_features, orthogonal init gives orthonormal
+    # COLUMNS, not unit rows — so the reference (and our loop) normalize at
+    # construction, before any optimiser step.
+    actor = FlashSACActor(17, 6)
+    rows = actor.embedder.w.weight.norm(dim=-1)
+    assert not torch.allclose(rows, torch.ones_like(rows), atol=1e-3)
+    actor.normalize_parameters()
+    _assert_norm_invariants(actor)
