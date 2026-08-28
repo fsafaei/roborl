@@ -59,5 +59,5 @@ Config: CleanRL `ppo.py` defaults exactly (see `docs/algos/ppo.md`),
 Candidate future references: CleanRL adding LunarLander to its benchmark,
 or the SB3 zoo's tuned PPO (different hyperparameters — would need the
 deviation listed and a `reference_label` making the source obvious). Until
-then the README counts PPO (discrete) as verified on CartPole-v1 and
-Acrobot-v1 only.
+then the README counts PPO (discrete) as verified on CartPole-v1,
+Acrobot-v1, and MountainCar-v0 only.
