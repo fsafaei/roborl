@@ -87,7 +87,7 @@ column. Nothing here is implemented yet; the infrastructure came first.
 |---|---|---|---|---|
 | SAC | Pendulum, MuJoCo | verified ✅ | CleanRL | [Hopper](benchmarks/reports/sac/Hopper-v4/report.md) · [HalfCheetah](benchmarks/reports/sac/HalfCheetah-v4/report.md) · [Walker2d](benchmarks/reports/sac/Walker2d-v4/report.md) |
 | PPO (discrete) | CartPole, Acrobot, MountainCar, LunarLander | verified ✅ | CleanRL | [CartPole](benchmarks/reports/ppo/CartPole-v1/report.md) · [Acrobot](benchmarks/reports/ppo/Acrobot-v1/report.md) · [MountainCar](benchmarks/reports/ppo/MountainCar-v0/report.md) · [LunarLander (no ref, N/A)](benchmarks/reports/ppo/LunarLander-v3/report.md) |
-| PPO (continuous) | Pendulum, MuJoCo | implemented | CleanRL | — |
+| PPO (continuous) | Pendulum, MuJoCo | verified ✅ | CleanRL | [HalfCheetah](benchmarks/reports/ppo_continuous_action/HalfCheetah-v4/report.md) · [Hopper](benchmarks/reports/ppo_continuous_action/Hopper-v4/report.md) · [Walker2d](benchmarks/reports/ppo_continuous_action/Walker2d-v4/report.md) |
 | FlashSAC | MuJoCo, high-dimensional control | planned | published results ([Kim et al., 2026](https://arxiv.org/abs/2604.04539)) | — |
 | HER + SAC | Fetch (Reach, Push, PickAndPlace) | planned | SB3/zoo + published results | — |
 
