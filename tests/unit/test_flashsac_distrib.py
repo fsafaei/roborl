@@ -18,7 +18,7 @@ def _point_mass(atom: int) -> torch.Tensor:
 def _target(
     log_prob: torch.Tensor, r: float, d: float, e: float, gamma: float = 0.9
 ) -> torch.Tensor:
-    return categorical_td_target(
+    m, _ = categorical_td_target(
         log_prob,
         rewards=torch.tensor([r]),
         terminated=torch.tensor([d]),
@@ -26,6 +26,7 @@ def _target(
         bin_values=BINS,
         gamma=gamma,
     )
+    return m
 
 
 @pytest.mark.unit
@@ -84,9 +85,36 @@ class TestProjectionFixtures:
         terminated = (torch.rand(batch) < 0.5).float()
         terminated[:101] = 1.0
         ent = torch.randn(batch)
-        m = categorical_td_target(log_prob, rewards, terminated, ent, bins, gamma=0.99)
+        m, clamp_fraction = categorical_td_target(
+            log_prob, rewards, terminated, ent, bins, gamma=0.99
+        )
         assert torch.allclose(m.sum(dim=-1), torch.ones(batch), atol=1e-5)
         assert (m >= 0).all()
+        assert 0.0 < clamp_fraction.item() < 1.0  # rewards in [-20, 20] force both cases
+
+    def test_clamp_fraction_hand_computed(self) -> None:
+        # r = 10 pushes every entry past v_max -> fraction 1; the in-support
+        # fixture touches no bound -> fraction 0.
+        _, all_clamped = categorical_td_target(
+            _point_mass(3),
+            rewards=torch.tensor([10.0]),
+            terminated=torch.tensor([0.0]),
+            ent_term=torch.tensor([0.0]),
+            bin_values=BINS,
+            gamma=0.9,
+        )
+        assert all_clamped.item() == 1.0
+        wide_point_mass = torch.zeros(1, 101)
+        wide_point_mass[0, 50] = 1.0
+        _, none_clamped = categorical_td_target(
+            wide_point_mass.log(),
+            rewards=torch.tensor([0.1]),
+            terminated=torch.tensor([0.0]),
+            ent_term=torch.tensor([0.0]),
+            bin_values=torch.linspace(-5.0, 5.0, 101),
+            gamma=0.9,
+        )
+        assert none_clamped.item() == 0.0
 
 
 @pytest.mark.unit

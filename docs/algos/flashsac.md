@@ -340,6 +340,7 @@ implementation are marked *(added in Pass A)*.
 | 13 | Observation normalisation | the embedder's leading BatchNorm; nothing else | medium — inferred from architecture |
 | 14 | Seed count and aggregation in the paper's results | bootstrap CIs shown; seed count not stated — we do not cite one | low |
 | 15 | n-step semantics under mid-window truncation | reference uses `gamma ** n` unconditionally (approximation); not exercised at n_step = 1 | medium |
+| 16 | Which update count parameterises each optimiser's LR schedule *(added in Pass A)* | each optimiser's **own** budget (actor and temperature step every `actor_update_period`-th update, so their cosine runs over `ceil(N/2)` steps) — all three end exactly at 1.5e-4 | medium — the alternative (all schedules on the critic's budget) leaves the actor mid-cosine at ~2.25e-4 |
 
 ## Pass B diff table
 

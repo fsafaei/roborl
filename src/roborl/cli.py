@@ -14,6 +14,7 @@ from typing import Annotated
 
 import tyro
 
+from roborl.algos.flashsac.flashsac import FlashSacConfig, run_flashsac
 from roborl.algos.ppo.ppo import PpoConfig, run_ppo
 from roborl.algos.ppo.ppo_continuous import PpoContinuousConfig, run_ppo_continuous
 from roborl.algos.sac.sac import SacConfig, run_sac
@@ -115,6 +116,7 @@ def main() -> None:
         {
             "demo": DemoConfig,
             "sac": SacConfig,
+            "flashsac": FlashSacConfig,
             "ppo": PpoConfig,
             "ppo-continuous": PpoContinuousConfig,
             "benchmark": BenchmarkArgs,
@@ -124,6 +126,8 @@ def main() -> None:
     )
     if isinstance(config, SacConfig):
         print(run_sac(config).render())
+    elif isinstance(config, FlashSacConfig):
+        print(run_flashsac(config).render())
     elif isinstance(config, PpoContinuousConfig):
         # Before PpoConfig: the continuous config subclasses the discrete one.
         print(run_ppo_continuous(config).render())

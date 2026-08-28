@@ -47,7 +47,7 @@ def categorical_td_target(
     bin_values: torch.Tensor,
     gamma: float,
     n_step: int = 1,
-) -> torch.Tensor:
+) -> tuple[torch.Tensor, torch.Tensor]:
     """Shift every atom by the soft Bellman backup and project onto the support.
 
     ``z_target = r + gamma**n_step * (z - ent_term) * (1 - d)``, clamped to
@@ -70,8 +70,12 @@ def categorical_td_target(
         n_step: Return horizon (1 in this phase).
 
     Returns:
-        The projected target distribution ``m``, shape ``(B, n)``; every row
-        sums to 1.
+        ``(m, clamp_fraction)``: the projected target distribution, shape
+        ``(B, n)`` with every row summing to 1, and the scalar fraction of
+        ``z_target`` entries at or beyond the support bounds before
+        clamping — ``diagnostics/target_clamp_fraction``, the single best
+        FlashSAC health signal (a climb above a few percent means the
+        reward scaling is not keeping returns inside the support).
 
     Raises:
         ValueError: If ``rewards``, ``terminated`` or ``ent_term`` is not 1-D.
@@ -94,6 +98,7 @@ def categorical_td_target(
     d = terminated.view(batch, 1)
     e = ent_term.view(batch, 1)
     z_target = r + (gamma**n_step) * (z - e) * (1.0 - d)
+    clamp_fraction = ((z_target <= v_min) | (z_target >= v_max)).float().mean()
     z_target = z_target.clamp(v_min, v_max)
 
     b = (z_target - v_min) / bin_width
@@ -104,4 +109,4 @@ def categorical_td_target(
     m = torch.zeros_like(p)
     m.scatter_add_(1, lower, p * (1.0 - frac))
     m.scatter_add_(1, upper, p * frac)
-    return m
+    return m, clamp_fraction
