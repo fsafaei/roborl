@@ -325,11 +325,21 @@ property of the reference hyperparameters, not a port bug. Locked in as a
 `slow`-marker test (`tests/slow/test_ppo_continuous_pendulum.py`, gate
 last-10 mean > −1000 at 500k).
 
-### Verification status (lifecycle steps 5–6)
+### Verification results (lifecycle steps 5–6) — PASS on all three envs
 
-Pending: 5 seeds × 1M steps on HalfCheetah-v4, Hopper-v4, and Walker2d-v4
-against the 9 CleanRL reference runs per env, `roborl benchmark compare`,
-reports under `benchmarks/reports/ppo_continuous_action/`.
+Ran 2026-08-28 at commit `9203c4a`, 5 seeds per env (seeds 1–5), 1M steps
+each, CleanRL's default hyperparameters with zero overrides, CPU. Reference:
+9 CleanRL `ppo_continuous_action` seeds per env from the
+`openrlbenchmark/cleanrl` W&B project. Final performance is IQM over the
+last 10% of training with 95% stratified bootstrap CIs; verdicts from
+`roborl benchmark compare`, reports committed under
+`benchmarks/reports/ppo_continuous_action/`.
+
+| Env | roborl IQM [95% CI] | CleanRL IQM [95% CI] | Verdict |
+|---|---|---|---|
+| HalfCheetah-v4 | 1621.7 [1420.8, 2188.0] | 1851.4 [1390.3, 3231.9] | **PASS** |
+| Hopper-v4 | 2336.4 [1784.4, 2604.1] | 2176.6 [1930.4, 2536.6] | **PASS** |
+| Walker2d-v4 | 2998.9 [2436.1, 3355.8] | 2978.1 [2364.8, 3514.4] | **PASS** |
 
 ### Telemetry
 
