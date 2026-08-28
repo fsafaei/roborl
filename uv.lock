@@ -2466,6 +2466,7 @@ benchmark = [
     { name = "pandas", version = "2.3.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' or (extra == 'extra-6-roborl-cpu' and extra == 'extra-6-roborl-cu130')" },
     { name = "pandas", version = "3.0.5", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' or (extra == 'extra-6-roborl-cpu' and extra == 'extra-6-roborl-cu130')" },
     { name = "pyarrow" },
+    { name = "wandb-workspaces" },
 ]
 box2d = [
     { name = "gymnasium", extra = ["box2d"] },
@@ -2507,6 +2508,7 @@ requires-dist = [
     { name = "torch", marker = "extra == 'cu130'", specifier = ">=2.4", index = "https://download.pytorch.org/whl/cu130", conflict = { package = "roborl", extra = "cu130" } },
     { name = "tyro", specifier = ">=0.9" },
     { name = "wandb", specifier = ">=0.19" },
+    { name = "wandb-workspaces", marker = "extra == 'benchmark'", specifier = ">=0.4.9" },
 ]
 provides-extras = ["cpu", "cu130", "mujoco", "box2d", "benchmark"]
 
@@ -2958,6 +2960,19 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/c0/9a/6da88bb45ea28c83eeb889473f84d0d505ed5f15be40726f125621fa7467/wandb-0.29.0-py3-none-musllinux_1_2_x86_64.whl", hash = "sha256:2bdb72ba809192a1a170830bea1071804d762769448f3ceb822b41160b9f6098", size = 30074151, upload-time = "2026-08-26T23:43:05.026Z" },
     { url = "https://files.pythonhosted.org/packages/c7/f9/96746f484690cd23fbb84c6fd0364e8c462e804dede9efe50a98b4f27ddd/wandb-0.29.0-py3-none-win_amd64.whl", hash = "sha256:92dca672417404d2cb882fe34f38d602ddcb54ece38716f7c76630e06fc62360", size = 27040796, upload-time = "2026-08-26T23:43:07.444Z" },
     { url = "https://files.pythonhosted.org/packages/94/74/e11e2ad886ac35bb5d568308f279357868de233e0dfaec11b9ddeed53164/wandb-0.29.0-py3-none-win_arm64.whl", hash = "sha256:ac523a1cd863f1a883852146f451ec9b950b0d2278d6e3bbedd099c713d14047", size = 24663195, upload-time = "2026-08-26T23:43:09.896Z" },
+]
+
+[[package]]
+name = "wandb-workspaces"
+version = "0.4.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "wandb" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/85/97/12591cab36bcc926578e0e27cc062e64e5137d23d07c3d92950d7aaf481b/wandb_workspaces-0.4.9.tar.gz", hash = "sha256:2c84d7a16d755c024c1bddb27121773ea07a865703d906767f984ec2187e6ef7", size = 227961, upload-time = "2026-08-25T13:13:22.08Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/2a/ac7658a1fa69306efa1760f0aa5e0b090857bfed7e6b4662fcdfede714a9/wandb_workspaces-0.4.9-py3-none-any.whl", hash = "sha256:19ab74f159b4fbd05ec0e9f716959e252fca389abcb15ece705792b9fd1f868b", size = 115831, upload-time = "2026-08-25T13:13:20.534Z" },
 ]
 
 [[package]]

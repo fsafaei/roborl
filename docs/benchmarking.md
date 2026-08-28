@@ -80,3 +80,18 @@ algorithm/env/commit/seed counts, final-performance table with CIs, verdict,
 sources) plus `curves.png` (curves with CI bands, final-performance bars).
 Reports are **committed** — they are the evidence behind every `verified ✅`
 in the README status table. Keep them small and curated.
+
+## Shareable W&B reports
+
+`roborl benchmark report-wandb` (ADR 0007) additionally builds one
+interactive W&B report per experiment — aggregated seed curves with min/max
+bands, one section per environment, with the CleanRL reference or an
+in-project baseline overlaid. These are *views* onto the tracked runs, not
+evidence; verdicts only ever come from `compare`. Current reports:
+
+- [SAC results](https://wandb.ai/fsafaei/roborl/reports/SAC-results--VmlldzoxNzgyNjA4Ng==)
+- [PPO (discrete) results](https://wandb.ai/fsafaei/roborl/reports/PPO-(discrete)-results--VmlldzoxNzgyNjA5MA==)
+- [PPO (continuous) results](https://wandb.ai/fsafaei/roborl/reports/PPO-(continuous)-results--VmlldzoxNzgyNjA5Mg==)
+- [FlashSAC results](https://wandb.ai/fsafaei/roborl/reports/FlashSAC-results--VmlldzoxNzgyNjA5Nw==)
+  (fills in live while the verification campaign runs; includes the
+  `diagnostics/` bounded-norm panels and the SAC baseline overlay)

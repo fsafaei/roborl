@@ -28,6 +28,7 @@ benchmark = [
   "matplotlib>=3.8",
   "pandas>=2.2",
   "pyarrow>=16",
+  "wandb-workspaces>=0.4.9",
 ]
 
 [dependency-groups]

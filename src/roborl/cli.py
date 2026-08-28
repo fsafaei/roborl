@@ -8,7 +8,7 @@ the ``benchmark`` extra.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated
 
@@ -55,9 +55,36 @@ class BenchmarkCompareArgs:
     """Label for the reference source in figure and report."""
 
 
+@dataclass(frozen=True)
+class BenchmarkWandbReportArgs:
+    """Create/update a shareable W&B report for one experiment's tracked runs."""
+
+    algo: str
+    """Our exp_name for the experiment (e.g. "sac", "flashsac")."""
+    env_ids: list[str]
+    """Environments, one report section each."""
+    title: str | None = None
+    """Report title (default "<algo> results")."""
+    description: str = ""
+    """One-line description shown under the title."""
+    intro: str = ""
+    """Markdown intro block (provenance, methodology, verdict links)."""
+    entity: str | None = None
+    """W&B entity holding our runs (default: the API's default entity)."""
+    project: str = "roborl"
+    """W&B project holding our runs."""
+    baseline_algo: str | None = None
+    """Second exp_name from our project to overlay (e.g. "sac" under flashsac)."""
+    reference_exp_name: str | None = None
+    """CleanRL exp_name to overlay from openrlbenchmark/cleanrl."""
+    metrics: list[str] = field(default_factory=lambda: ["charts/episodic_return", "charts/SPS"])
+    """Metric keys plotted per environment section."""
+
+
 BenchmarkCommand = (
     Annotated[BenchmarkFetchArgs, tyro.conf.subcommand("fetch")]
     | Annotated[BenchmarkCompareArgs, tyro.conf.subcommand("compare")]
+    | Annotated[BenchmarkWandbReportArgs, tyro.conf.subcommand("report-wandb")]
 )
 
 
@@ -73,6 +100,7 @@ def _run_benchmark(args: BenchmarkArgs) -> None:
     try:
         from roborl.benchmark.fetch import OpenRLBenchmarkAdapter
         from roborl.benchmark.report import run_compare
+        from roborl.benchmark.wandb_report import build_report
     except ImportError as error:
         raise SystemExit(
             "The benchmark harness needs the 'benchmark' extra:\n"
@@ -81,7 +109,21 @@ def _run_benchmark(args: BenchmarkArgs) -> None:
         ) from error
 
     command = args.command
-    if isinstance(command, BenchmarkFetchArgs):
+    if isinstance(command, BenchmarkWandbReportArgs):
+        url = build_report(
+            algo=command.algo,
+            env_ids=command.env_ids,
+            entity=command.entity,
+            project=command.project,
+            metrics=command.metrics,
+            title=command.title,
+            description=command.description,
+            intro=command.intro,
+            baseline_algo=command.baseline_algo,
+            reference_exp_name=command.reference_exp_name,
+        )
+        print(f"report: {url}")
+    elif isinstance(command, BenchmarkFetchArgs):
         adapter = OpenRLBenchmarkAdapter(entity=command.entity, project=command.project)
         frame = adapter.fetch(command.algo, command.env_id, force=command.force)
         n_runs = frame["run_id"].nunique()
