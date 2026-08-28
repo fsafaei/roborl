@@ -16,12 +16,55 @@ compare`` and the committed reports (ADR 0005).
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
+
 import wandb
 import wandb_workspaces.expr as expr
 import wandb_workspaces.reports.v2 as wr
 
 REFERENCE_ENTITY = "openrlbenchmark"
 REFERENCE_PROJECT = "cleanrl"
+REPO_URL = "https://github.com/fsafaei/roborl"
+
+
+def _env_notes(reports_dir: Path, algo: str, env_id: str) -> str:
+    """Per-environment explanation sourced from the committed harness report.
+
+    Extracts the verdict and the final-performance table from
+    ``benchmarks/reports/<algo>/<env_id>/report.md`` so every number shown
+    in the W&B report traces to committed evidence. Environments without a
+    committed report get an explicit "verdict pending" note instead.
+    """
+    path = reports_dir / algo / env_id / "report.md"
+    if not path.exists():
+        return (
+            "*No committed verification report for this environment yet — the "
+            "verdict lands via `roborl benchmark compare` once its runs "
+            "complete, and this section will be updated with the numbers.*"
+        )
+    text = path.read_text()
+    verdict_match = re.search(r"\|\s*\*\*Verdict\*\*\s*\|\s*\*\*(.+?)\*\*\s*\|", text)
+    verdict = verdict_match.group(1) if verdict_match else "see committed report"
+    table_lines: list[str] = []
+    in_section = False
+    for line in text.splitlines():
+        if line.startswith("## Final performance"):
+            in_section = True
+            continue
+        if in_section:
+            if line.startswith("## "):
+                break
+            if line.lstrip().startswith("|"):
+                table_lines.append(line.strip())
+    link = f"{REPO_URL}/blob/main/benchmarks/reports/{algo}/{env_id}/report.md"
+    note = (
+        f"**Verdict: {verdict}** — IQM over the last 10% of training with 95% "
+        f"stratified bootstrap CIs, from the [committed harness report]({link}):"
+    )
+    if table_lines:
+        note += "\n\n" + "\n".join(table_lines)
+    return note
 
 
 def _runset(entity: str, project: str, exp_name: str, env_id: str, label: str) -> wr.Runset:
@@ -63,6 +106,8 @@ def build_report(
     intro: str = "",
     baseline_algo: str | None = None,
     reference_exp_name: str | None = None,
+    reports_dir: Path | None = None,
+    update_url: str | None = None,
 ) -> str:
     """Create (or overwrite-as-new) the experiment's W&B report.
 
@@ -79,6 +124,11 @@ def build_report(
             overlay (e.g. ``"sac"`` under a ``"flashsac"`` report).
         reference_exp_name: Optional CleanRL ``exp_name`` to overlay from
             ``openrlbenchmark/cleanrl`` (e.g. ``"sac_continuous_action"``).
+        reports_dir: Root of the committed harness reports; when given, each
+            environment section opens with its verdict and final-performance
+            table extracted from ``<reports_dir>/<algo>/<env_id>/report.md``.
+        update_url: Existing report URL to update in place (keeps the link
+            stable); None creates a new report.
 
     Returns:
         The saved report's URL.
@@ -110,15 +160,23 @@ def build_report(
                 )
             )
         blocks.append(wr.H2(text=env_id))
+        if reports_dir is not None:
+            blocks.append(wr.MarkdownBlock(text=_env_notes(reports_dir, algo, env_id)))
         blocks.append(wr.PanelGrid(runsets=runsets, panels=[_panel(m) for m in metrics]))
 
-    report = wr.Report(
-        entity=resolved_entity,
-        project=project,
-        title=title or f"{algo} results",
-        description=description,
-        blocks=blocks,
-    )
+    if update_url is not None:
+        report = wr.Report.from_url(update_url)
+        report.title = title or f"{algo} results"
+        report.description = description
+        report.blocks = blocks
+    else:
+        report = wr.Report(
+            entity=resolved_entity,
+            project=project,
+            title=title or f"{algo} results",
+            description=description,
+            blocks=blocks,
+        )
     report.save()
     url: str = report.url
     return url

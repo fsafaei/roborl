@@ -77,6 +77,10 @@ class BenchmarkWandbReportArgs:
     """Second exp_name from our project to overlay (e.g. "sac" under flashsac)."""
     reference_exp_name: str | None = None
     """CleanRL exp_name to overlay from openrlbenchmark/cleanrl."""
+    reports_dir: Path | None = Path("benchmarks/reports")
+    """Committed harness reports root; adds each env's verdict + IQM table to its section."""
+    update_url: str | None = None
+    """Existing report URL to update in place (keeps the link stable)."""
     metrics: list[str] = field(default_factory=lambda: ["charts/episodic_return", "charts/SPS"])
     """Metric keys plotted per environment section."""
 
@@ -153,6 +157,8 @@ def _run_benchmark(args: BenchmarkArgs) -> None:
             intro=command.intro,
             baseline_algo=command.baseline_algo,
             reference_exp_name=command.reference_exp_name,
+            reports_dir=command.reports_dir,
+            update_url=command.update_url,
         )
         print(f"report: {url}")
     elif isinstance(command, BenchmarkFetchArgs):

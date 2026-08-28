@@ -28,6 +28,11 @@ CleanRL reference from `openrlbenchmark/cleanrl`.
   seeds automatically, so a report created mid-campaign fills in live.
 - The W&B report is a *view*, never evidence: verdicts still come
   exclusively from `roborl benchmark compare` and the committed reports.
-- Each invocation creates a new report URL (the API has no idempotent
-  upsert); regenerate sparingly and update the links in
-  `docs/benchmarking.md`.
+- `--update-url` edits an existing report in place (via
+  `Report.from_url`), keeping the links in `docs/benchmarking.md` stable;
+  omitting it creates a new URL.
+- With `--reports-dir` (the default), each environment section opens with
+  its verdict and final-performance table extracted from the committed
+  harness report — so every number shown in W&B traces to committed
+  evidence, and environments without a report say "verdict pending"
+  explicitly.
