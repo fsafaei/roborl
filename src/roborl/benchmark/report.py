@@ -82,6 +82,7 @@ def run_compare(
     env_id: str,
     out_dir: Path,
     reference_label: str = "reference",
+    ours_label: str = "roborl",
     grid_points: int = 50,
     last_fraction: float = 0.1,
 ) -> ComparisonResult:
@@ -95,6 +96,9 @@ def run_compare(
         env_id: Environment id for the report header.
         out_dir: Output directory; ``report.md`` and ``curves.png`` land here.
         reference_label: Name of the reference source for labels.
+        ours_label: Name of our run set for labels — override when the
+            reference is also a roborl run set (e.g. "roborl FlashSAC" vs
+            "roborl SAC (verified)"), where a bare "roborl" is ambiguous.
         grid_points: Resolution of the common step grid.
         last_fraction: Fraction of training counted as final performance.
 
@@ -128,10 +132,11 @@ def run_compare(
         grid,
         out_dir / "curves.png",
         title=f"{algo} on {env_id}",
+        ours_label=ours_label,
         reference_label=reference_label,
         final_stats={
             reference_label: (reference_iqm, *reference_ci),
-            "roborl": (ours_iqm, *ours_ci),
+            ours_label: (ours_iqm, *ours_ci),
         },
     )
 
@@ -149,6 +154,7 @@ def run_compare(
             n_ours=len(ours),
             n_reference=len(reference),
             reference_label=reference_label,
+            ours_label=ours_label,
             last_fraction=last_fraction,
             git_sha=str(provenance["git_sha"]),
             git_dirty=bool(provenance["git_dirty"]),
@@ -181,6 +187,7 @@ def _render_markdown(
     n_ours: int,
     n_reference: int,
     reference_label: str,
+    ours_label: str,
     last_fraction: float,
     git_sha: str,
     git_dirty: bool,
@@ -205,7 +212,7 @@ def _render_markdown(
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | {ours_iqm:.2f} | [{ours_ci[0]:.2f}, {ours_ci[1]:.2f}] |
+| {ours_label} | {ours_iqm:.2f} | [{ours_ci[0]:.2f}, {ours_ci[1]:.2f}] |
 | {reference_label} | {reference_iqm:.2f} | [{reference_ci[0]:.2f}, {reference_ci[1]:.2f}] |
 
 ## Sample efficiency

@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `ppo_continuous_action` |
 | Environment | `Hopper-v4` |
-| Commit | `9203c4a7ef14` (dirty) |
+| Commit | `9203c4a7ef14` (one seed dirty) |
 | Our runs | 5 |
 | Reference runs | 9 (cleanrl) |
 | Final window | last 10% of training |
@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | 2336.36 | [1784.38, 2604.05] |
+| roborl PPO (continuous) | 2336.36 | [1784.38, 2604.05] |
 | cleanrl | 2176.59 | [1930.39, 2536.55] |
 
 ## Sample efficiency

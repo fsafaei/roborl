@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `ppo` |
 | Environment | `MountainCar-v0` |
-| Commit | `f9be429f01ef` (dirty) |
+| Commit | `f9be429f01ef` |
 | Our runs | 5 |
 | Reference runs | 6 (cleanrl) |
 | Final window | last 10% of training |
@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | -200.00 | [-200.00, -200.00] |
+| roborl PPO | -200.00 | [-200.00, -200.00] |
 | cleanrl | -200.00 | [-200.00, -200.00] |
 
 ## Sample efficiency

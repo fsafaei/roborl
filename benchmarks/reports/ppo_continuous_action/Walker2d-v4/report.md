@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | 2998.91 | [2436.08, 3355.76] |
+| roborl PPO (continuous) | 2998.91 | [2436.08, 3355.76] |
 | cleanrl | 2978.08 | [2364.76, 3514.43] |
 
 ## Sample efficiency

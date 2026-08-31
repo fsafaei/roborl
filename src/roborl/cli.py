@@ -8,12 +8,13 @@ the ``benchmark`` extra.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Annotated
 
 import tyro
 
+from roborl.algos.flashsac.flashsac import FlashSacConfig, run_flashsac
 from roborl.algos.ppo.ppo import PpoConfig, run_ppo
 from roborl.algos.ppo.ppo_continuous import PpoContinuousConfig, run_ppo_continuous
 from roborl.algos.sac.sac import SacConfig, run_sac
@@ -52,11 +53,73 @@ class BenchmarkCompareArgs:
     """Output directory (default: benchmarks/reports/<algo>/<env_id>)."""
     reference_label: str = "reference"
     """Label for the reference source in figure and report."""
+    ours_label: str = "roborl"
+    """Label for our run set — override when the reference is also roborl."""
+
+
+@dataclass(frozen=True)
+class BenchmarkWandbReportArgs:
+    """Create/update a shareable W&B report for one experiment's tracked runs."""
+
+    algo: str
+    """Our exp_name for the experiment (e.g. "sac", "flashsac")."""
+    env_ids: list[str]
+    """Environments, one report section each."""
+    title: str | None = None
+    """Report title (default "<algo> results")."""
+    description: str = ""
+    """One-line description shown under the title."""
+    intro: str = ""
+    """Markdown intro block (provenance, methodology, verdict links)."""
+    entity: str | None = None
+    """W&B entity holding our runs (default: the API's default entity)."""
+    project: str = "roborl"
+    """W&B project holding our runs."""
+    baseline_algo: str | None = None
+    """Second exp_name from our project to overlay (e.g. "sac" under flashsac)."""
+    reference_exp_name: str | None = None
+    """CleanRL exp_name to overlay from openrlbenchmark/cleanrl."""
+    reports_dir: Path | None = Path("benchmarks/reports")
+    """Committed harness reports root; adds each env's verdict + IQM table to its section."""
+    ours_runset_label: str | None = None
+    """Chart-legend name for our run set (default "<algo> (roborl)")."""
+    baseline_runset_label: str | None = None
+    """Chart-legend name for the baseline run set."""
+    reference_runset_label: str | None = None
+    """Chart-legend name for the CleanRL reference run set."""
+    update_url: str | None = None
+    """Existing report URL to update in place (keeps the link stable)."""
+    metrics: list[str] = field(default_factory=lambda: ["charts/episodic_return", "charts/SPS"])
+    """Metric keys plotted per environment section."""
+
+
+@dataclass(frozen=True)
+class BenchmarkWandbWorkspaceArgs:
+    """Create a saved W&B workspace view for one experiment's tracked runs."""
+
+    algo: str
+    """Our exp_name for the experiment (e.g. "sac", "flashsac")."""
+    name: str | None = None
+    """View name (default: the algo). W&B forbids emoji here."""
+    entity: str | None = None
+    """W&B entity holding our runs (default: the API's default entity)."""
+    project: str = "roborl"
+    """W&B project holding our runs."""
+    metrics: list[str] = field(
+        default_factory=lambda: [
+            "charts/episodic_return",
+            "charts/episodic_length",
+            "charts/SPS",
+        ]
+    )
+    """Metric keys to plot; panels are sectioned by namespace prefix."""
 
 
 BenchmarkCommand = (
     Annotated[BenchmarkFetchArgs, tyro.conf.subcommand("fetch")]
     | Annotated[BenchmarkCompareArgs, tyro.conf.subcommand("compare")]
+    | Annotated[BenchmarkWandbReportArgs, tyro.conf.subcommand("report-wandb")]
+    | Annotated[BenchmarkWandbWorkspaceArgs, tyro.conf.subcommand("workspace-wandb")]
 )
 
 
@@ -72,6 +135,7 @@ def _run_benchmark(args: BenchmarkArgs) -> None:
     try:
         from roborl.benchmark.fetch import OpenRLBenchmarkAdapter
         from roborl.benchmark.report import run_compare
+        from roborl.benchmark.wandb_report import build_report, build_workspace
     except ImportError as error:
         raise SystemExit(
             "The benchmark harness needs the 'benchmark' extra:\n"
@@ -80,7 +144,35 @@ def _run_benchmark(args: BenchmarkArgs) -> None:
         ) from error
 
     command = args.command
-    if isinstance(command, BenchmarkFetchArgs):
+    if isinstance(command, BenchmarkWandbWorkspaceArgs):
+        url = build_workspace(
+            algo=command.algo,
+            entity=command.entity,
+            project=command.project,
+            metrics=command.metrics,
+            name=command.name,
+        )
+        print(f"workspace view: {url}")
+    elif isinstance(command, BenchmarkWandbReportArgs):
+        url = build_report(
+            algo=command.algo,
+            env_ids=command.env_ids,
+            entity=command.entity,
+            project=command.project,
+            metrics=command.metrics,
+            title=command.title,
+            description=command.description,
+            intro=command.intro,
+            baseline_algo=command.baseline_algo,
+            reference_exp_name=command.reference_exp_name,
+            reports_dir=command.reports_dir,
+            update_url=command.update_url,
+            ours_runset_label=command.ours_runset_label,
+            baseline_runset_label=command.baseline_runset_label,
+            reference_runset_label=command.reference_runset_label,
+        )
+        print(f"report: {url}")
+    elif isinstance(command, BenchmarkFetchArgs):
         adapter = OpenRLBenchmarkAdapter(entity=command.entity, project=command.project)
         frame = adapter.fetch(command.algo, command.env_id, force=command.force)
         n_runs = frame["run_id"].nunique()
@@ -97,10 +189,11 @@ def _run_benchmark(args: BenchmarkArgs) -> None:
             env_id=command.env_id,
             out_dir=out_dir,
             reference_label=command.reference_label,
+            ours_label=command.ours_label,
         )
         print(
             f"verdict: {result.verdict}\n"
-            f"roborl final IQM {result.ours_iqm:.2f} "
+            f"{command.ours_label} final IQM {result.ours_iqm:.2f} "
             f"[{result.ours_ci[0]:.2f}, {result.ours_ci[1]:.2f}] (n={result.n_ours})  vs  "
             f"{command.reference_label} {result.reference_iqm:.2f} "
             f"[{result.reference_ci[0]:.2f}, {result.reference_ci[1]:.2f}] "
@@ -115,6 +208,7 @@ def main() -> None:
         {
             "demo": DemoConfig,
             "sac": SacConfig,
+            "flashsac": FlashSacConfig,
             "ppo": PpoConfig,
             "ppo-continuous": PpoContinuousConfig,
             "benchmark": BenchmarkArgs,
@@ -124,6 +218,8 @@ def main() -> None:
     )
     if isinstance(config, SacConfig):
         print(run_sac(config).render())
+    elif isinstance(config, FlashSacConfig):
+        print(run_flashsac(config).render())
     elif isinstance(config, PpoContinuousConfig):
         # Before PpoConfig: the continuous config subclasses the discrete one.
         print(run_ppo_continuous(config).render())

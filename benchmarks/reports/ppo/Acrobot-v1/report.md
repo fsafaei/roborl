@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `ppo` |
 | Environment | `Acrobot-v1` |
-| Commit | `4ed2bee432de` (dirty) |
+| Commit | `4ed2bee432de` |
 | Our runs | 5 |
 | Reference runs | 6 (cleanrl) |
 | Final window | last 10% of training |
@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | -83.99 | [-84.88, -82.81] |
+| roborl PPO | -83.99 | [-84.88, -82.81] |
 | cleanrl | -84.62 | [-86.25, -83.69] |
 
 ## Sample efficiency

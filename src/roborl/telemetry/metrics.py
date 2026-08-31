@@ -47,6 +47,15 @@ EXPLAINED_VARIANCE: Final = "losses/explained_variance"
 GRAD_NORM: Final = "diagnostics/grad_norm"
 PARAM_NORM: Final = "diagnostics/param_norm"
 
+# FlashSAC (see docs/algos/flashsac.md for what healthy looks like).
+TARGET_CLAMP_FRACTION: Final = "diagnostics/target_clamp_fraction"
+REWARD_SCALE: Final = "diagnostics/reward_scale"
+RETURN_RMS_VAR: Final = "diagnostics/return_rms_var"
+TARGET_DIST_ENTROPY: Final = "diagnostics/target_dist_entropy"
+CRITIC_FEATURE_NORM: Final = "diagnostics/critic_feature_norm"
+NOISE_REPEAT_LEN: Final = "diagnostics/noise_repeat_len"
+TARGET_ENTROPY: Final = "diagnostics/target_entropy"
+
 # roborl additions (eval/): deterministic-policy evaluation, distinct from
 # the exploration-noised training return.
 EVAL_EPISODIC_RETURN: Final = "eval/episodic_return"

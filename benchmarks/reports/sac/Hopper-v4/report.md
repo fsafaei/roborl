@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | 3082.19 | [2603.61, 3388.67] |
+| roborl SAC | 3082.19 | [2603.61, 3388.67] |
 | CleanRL (openrlbenchmark) | 2366.30 | [2045.23, 2720.89] |
 
 ## Sample efficiency
