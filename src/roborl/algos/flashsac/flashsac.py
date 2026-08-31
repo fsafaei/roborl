@@ -112,6 +112,16 @@ class FlashSacConfig(ExperimentConfig):
     """Zeta exponent for exploration-noise run lengths."""
     noise_zeta_max: int = 16
     """Zeta truncation: maximum noise run length."""
+    use_rmsnorm: bool = True
+    """Terminal RMSNorm on both trunks. Off only on ablation-ladder rung 2."""
+    use_distributional: bool = True
+    """Categorical critic + adaptive reward scaling. Off on ladder rungs 2-3:
+    scalar critic, MSE on raw rewards."""
+    use_weight_norm: bool = True
+    """Unit weight normalisation at init and after every optimiser step. Off on rungs 2-4."""
+    use_flash_exploration: bool = True
+    """Sigma-based entropy target + Zeta-repeated noise. Off on rungs 2-5, which use
+    SAC's -dim(A) target and fresh per-step noise — pass --alpha-init 1.0 alongside."""
     save_episodes: bool = False
     """Write per-episode returns to runs/{run_name}.csv for benchmark compare."""
     episode_dir: str = "runs"
@@ -227,7 +237,13 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
     obs_dim = int(np.prod(env.observation_space.shape))
     act_dim = int(np.prod(env.action_space.shape))
 
-    actor = FlashSACActor(obs_dim, act_dim, config.actor_hidden, config.actor_blocks).to(device)
+    actor = FlashSACActor(
+        obs_dim,
+        act_dim,
+        config.actor_hidden,
+        config.actor_blocks,
+        use_rmsnorm=config.use_rmsnorm,
+    ).to(device)
     critic = FlashSACDoubleCritic(
         obs_dim,
         act_dim,
@@ -236,18 +252,25 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
         n_atoms=config.n_atoms,
         v_min=config.v_min,
         v_max=config.v_max,
+        use_rmsnorm=config.use_rmsnorm,
+        distributional=config.use_distributional,
     ).to(device)
     # Full copy at construction only; from here the EMA touches parameters
     # exclusively and the target's BatchNorm stats evolve on their own.
     target_critic = copy.deepcopy(critic)
-    # The reference normalizes at init too: orthogonal init only gives unit
-    # rows where out_features <= in_features, so wide layers start off-manifold.
-    actor.normalize_parameters()
-    critic.normalize_parameters()
-    target_critic.normalize_parameters()
+    if config.use_weight_norm:
+        # The reference normalizes at init too: orthogonal init only gives unit
+        # rows where out_features <= in_features, so wide layers start off-manifold.
+        actor.normalize_parameters()
+        critic.normalize_parameters()
+        target_critic.normalize_parameters()
     temperature = Temperature(config.alpha_init).to(device)
-    h_target = entropy_target(act_dim, config.sigma_tgt)
-    bin_values = critic.bin_values.view(-1)
+    h_target = (
+        entropy_target(act_dim, config.sigma_tgt)
+        if config.use_flash_exploration
+        else -float(act_dim)
+    )
+    bin_values = critic.bin_values.view(-1) if config.use_distributional else None
 
     critic_opt = optim.Adam(critic.parameters(), lr=config.lr_peak)
     actor_opt = optim.Adam(actor.parameters(), lr=config.lr_peak)
@@ -280,7 +303,11 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
             with torch.no_grad():  # BN-eval on every rollout path
                 obs_t = torch.as_tensor(obs, device=device).unsqueeze(0)
                 mean, std = actor.get_mean_and_std(obs_t, training=False)
-                action_t = torch.tanh(mean + std * noise.next().to(device))
+                if config.use_flash_exploration:
+                    eps = noise.next().to(device)
+                else:  # SAC-style: a fresh draw every step (== rsample)
+                    eps = torch.randn_like(mean)
+                action_t = torch.tanh(mean + std * eps)
             action = action_t.squeeze(0).cpu().numpy()
 
         next_obs, reward, terminated, truncated, info = env.step(action)
@@ -309,7 +336,6 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
 
         if global_step > config.learning_starts:
             data = rb.sample(config.batch_size, device)
-            r_norm = reward_normalizer.normalize(data.rewards)
             obs_all = torch.cat([data.observations, data.next_observations], dim=0)
 
             # --- actor + temperature FIRST, every actor_update_period-th
@@ -342,7 +368,8 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
                 actor_opt.zero_grad()
                 actor_loss.backward()
                 actor_opt.step()
-                actor.normalize_parameters()
+                if config.use_weight_norm:
+                    actor.normalize_parameters()
                 actor_loss_val = actor_loss.item()
 
                 entropy = -logp.mean().detach()
@@ -355,28 +382,43 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
                 alpha_loss_val = alpha_loss.item()
                 actor_step += 1
 
-            # --- distributional TD target, everything under no_grad ---
+            # --- TD target, everything under no_grad ---
             with torch.no_grad():
                 a_next, logp_next = actor(data.next_observations, training=False)
                 alpha = temperature()  # read INSIDE no_grad: pitfall 7
-                ent_term = alpha * logp_next
                 # Cross-batch: ONE train-mode pass over both halves so
                 # Q(s,a) and Q(s',a') share normalisation statistics.
                 act_all = torch.cat([data.actions, a_next], dim=0)
                 q_all, logp_all = target_critic(obs_all, act_all, training=True)
                 q_next = q_all.chunk(2, dim=1)[1]
-                logp_next_d = logp_all.chunk(2, dim=1)[1]
-                log_p = select_min_member(q_next, logp_next_d)
-                m, clamp_fraction = categorical_td_target(
-                    log_p, r_norm, data.dones, ent_term, bin_values, config.gamma
-                )
+                if config.use_distributional:
+                    assert bin_values is not None and logp_all is not None
+                    r_norm = reward_normalizer.normalize(data.rewards)
+                    ent_term = alpha * logp_next
+                    logp_next_d = logp_all.chunk(2, dim=1)[1]
+                    log_p = select_min_member(q_next, logp_next_d)
+                    m, clamp_fraction = categorical_td_target(
+                        log_p, r_norm, data.dones, ent_term, bin_values, config.gamma
+                    )
+                else:
+                    # Ladder rungs 2-3: scalar clipped double-Q soft target
+                    # on RAW rewards (no fixed support, no reward scaling).
+                    min_q_next = q_next.min(dim=0).values
+                    soft_value = min_q_next - alpha * logp_next
+                    y = data.rewards + config.gamma * (1.0 - data.dones) * soft_value
+                    assert y.shape == (config.batch_size,)
 
-            # --- critic: cross-entropy on the same concatenated batch ---
+            # --- critic loss on the same concatenated batch ---
             q_pred_all, logp_pred_all = critic(obs_all, act_all, training=True)
-            log_p_sa = logp_pred_all.chunk(2, dim=1)[0]
-            ce = -(m.unsqueeze(0) * log_p_sa).sum(dim=-1)
-            assert ce.shape == (critic.ensemble_size, config.batch_size)
-            critic_loss = ce.mean()
+            if config.use_distributional:
+                assert logp_pred_all is not None
+                log_p_sa = logp_pred_all.chunk(2, dim=1)[0]
+                ce = -(m.unsqueeze(0) * log_p_sa).sum(dim=-1)
+                assert ce.shape == (critic.ensemble_size, config.batch_size)
+                critic_loss = ce.mean()
+            else:
+                q_sa = q_pred_all.chunk(2, dim=1)[0]
+                critic_loss = ((q_sa - y.unsqueeze(0)) ** 2).mean()
 
             lr_now = cosine_lr(
                 update_step,
@@ -391,7 +433,8 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
             critic_opt.zero_grad()
             critic_loss.backward()
             critic_opt.step()
-            critic.normalize_parameters()
+            if config.use_weight_norm:
+                critic.normalize_parameters()
 
             # --- target EMA: parameters ONLY, never BatchNorm buffers ---
             with torch.no_grad():
@@ -401,7 +444,6 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
             if update_step % 100 == 0:
                 with torch.no_grad():
                     q_current = q_pred_all.chunk(2, dim=1)[0]
-                    target_entropy_dist = -(m * (m + 1e-12).log()).sum(dim=-1).mean()
                     feature_norm = (
                         critic.features(data.observations, data.actions, training=False)
                         .norm(dim=-1)
@@ -413,28 +455,30 @@ def run_flashsac(config: FlashSacConfig) -> FlashSacSummary:
                         )
                     )
                     param_norm = torch.norm(torch.stack([p.norm() for p in critic.parameters()]))
-                logger.log(
-                    {
-                        metrics.QF1_VALUES: q_current[0].mean().item(),
-                        metrics.QF2_VALUES: q_current[1].mean().item(),
-                        metrics.QF_LOSS: critic_loss.item(),
-                        metrics.ACTOR_LOSS: actor_loss_val,
-                        metrics.ALPHA: alpha.item(),
-                        metrics.ALPHA_LOSS: alpha_loss_val,
-                        metrics.LEARNING_RATE: lr_now,
-                        metrics.SPS: global_step / (time.perf_counter() - start),
-                        metrics.TARGET_CLAMP_FRACTION: clamp_fraction.item(),
-                        metrics.REWARD_SCALE: reward_normalizer.denominator,
-                        metrics.RETURN_RMS_VAR: reward_normalizer.rms.var,
-                        metrics.TARGET_DIST_ENTROPY: target_entropy_dist.item(),
-                        metrics.CRITIC_FEATURE_NORM: feature_norm.item(),
-                        metrics.GRAD_NORM: grad_norm.item(),
-                        metrics.PARAM_NORM: param_norm.item(),
-                        metrics.NOISE_REPEAT_LEN: float(noise.run_length),
-                        metrics.TARGET_ENTROPY: h_target,
-                    },
-                    step=global_step,
-                )
+                scalars = {
+                    metrics.QF1_VALUES: q_current[0].mean().item(),
+                    metrics.QF2_VALUES: q_current[1].mean().item(),
+                    metrics.QF_LOSS: critic_loss.item(),
+                    metrics.ACTOR_LOSS: actor_loss_val,
+                    metrics.ALPHA: alpha.item(),
+                    metrics.ALPHA_LOSS: alpha_loss_val,
+                    metrics.LEARNING_RATE: lr_now,
+                    metrics.SPS: global_step / (time.perf_counter() - start),
+                    metrics.CRITIC_FEATURE_NORM: feature_norm.item(),
+                    metrics.GRAD_NORM: grad_norm.item(),
+                    metrics.PARAM_NORM: param_norm.item(),
+                    metrics.TARGET_ENTROPY: h_target,
+                }
+                if config.use_distributional:
+                    with torch.no_grad():
+                        target_entropy_dist = -(m * (m + 1e-12).log()).sum(dim=-1).mean()
+                    scalars[metrics.TARGET_CLAMP_FRACTION] = clamp_fraction.item()
+                    scalars[metrics.REWARD_SCALE] = reward_normalizer.denominator
+                    scalars[metrics.RETURN_RMS_VAR] = reward_normalizer.rms.var
+                    scalars[metrics.TARGET_DIST_ENTROPY] = target_entropy_dist.item()
+                if config.use_flash_exploration:
+                    scalars[metrics.NOISE_REPEAT_LEN] = float(noise.run_length)
+                logger.log(scalars, step=global_step)
             update_step += 1
 
     elapsed = time.perf_counter() - start

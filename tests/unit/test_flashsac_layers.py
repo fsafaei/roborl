@@ -21,6 +21,7 @@ from roborl.algos.flashsac.layers import (
 from roborl.algos.flashsac.networks import (
     LOG_STD_MAX,
     LOG_STD_MIN,
+    EnsembleCategoricalValue,
     FlashSACActor,
     FlashSACDoubleCritic,
     Temperature,
@@ -213,6 +214,7 @@ class TestNormalizationAfterOptimizerStep:
 
     def test_normalize_does_not_touch_running_stats_or_free_biases(self) -> None:
         critic = FlashSACDoubleCritic(5, 2, hidden=16, num_blocks=1, n_atoms=11)
+        assert isinstance(critic.head, EnsembleCategoricalValue)
         critic(torch.randn(16, 5), torch.rand(16, 2), training=True)
         stats_before = critic.embedder.norm.running_mean.clone()
         with torch.no_grad():

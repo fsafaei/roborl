@@ -71,7 +71,14 @@ def entropy_target(act_dim: int, sigma_tgt: float = 0.15) -> float:
 class FlashSACActor(nn.Module):
     """Residual-BN trunk with a tanh-Gaussian head on unscaled ``[-1, 1]`` actions."""
 
-    def __init__(self, obs_dim: int, act_dim: int, hidden: int = 128, num_blocks: int = 2) -> None:
+    def __init__(
+        self,
+        obs_dim: int,
+        act_dim: int,
+        hidden: int = 128,
+        num_blocks: int = 2,
+        use_rmsnorm: bool = True,
+    ) -> None:
         """Build the actor.
 
         Args:
@@ -79,12 +86,14 @@ class FlashSACActor(nn.Module):
             act_dim: Flat action size.
             hidden: Trunk width.
             num_blocks: Residual block count.
+            use_rmsnorm: Terminal RMSNorm on the trunk (False only on
+                ablation-ladder rung 2).
         """
         super().__init__()
         self.act_dim = act_dim
         self.embedder = Embedder(obs_dim, hidden)
         self.blocks = nn.ModuleList(Block(hidden) for _ in range(num_blocks))
-        self.out_norm = UnitRMSNorm(hidden)
+        self.out_norm: nn.Module = UnitRMSNorm(hidden) if use_rmsnorm else nn.Identity()
         self.mean_w = UnitLinear(hidden, act_dim)
         self.mean_bias = nn.Parameter(torch.zeros(act_dim))
         self.std_w = UnitLinear(hidden, act_dim)
@@ -180,6 +189,26 @@ class EnsembleCategoricalValue(nn.Module):
         return q, log_prob
 
 
+class EnsembleScalarValue(nn.Module):
+    """Scalar value head (ablation-ladder rungs 2-3: SAC-style critic + MSE)."""
+
+    def __init__(self, ensemble_size: int, hidden: int) -> None:
+        """Build the head.
+
+        Args:
+            ensemble_size: Number of members ``E``.
+            hidden: Trunk width.
+        """
+        super().__init__()
+        self.w = EnsembleUnitLinear(ensemble_size, hidden, 1)
+        self.bias = nn.Parameter(torch.zeros(ensemble_size, 1))
+
+    def forward(self, h: torch.Tensor) -> tuple[torch.Tensor, None]:
+        """Map features ``(E, B, hidden)`` to ``(q, None)``, ``q`` of shape ``(E, B)``."""
+        q = (self.w(h) + self.bias.unsqueeze(1)).squeeze(-1)
+        return q, None
+
+
 class FlashSACDoubleCritic(nn.Module):
     """Twin categorical critics as one ensemble module with a leading member dim."""
 
@@ -193,6 +222,8 @@ class FlashSACDoubleCritic(nn.Module):
         n_atoms: int = 101,
         v_min: float = -5.0,
         v_max: float = 5.0,
+        use_rmsnorm: bool = True,
+        distributional: bool = True,
     ) -> None:
         """Build the critic ensemble.
 
@@ -205,19 +236,32 @@ class FlashSACDoubleCritic(nn.Module):
             n_atoms: Number of support atoms.
             v_min: Lowest atom.
             v_max: Highest atom.
+            use_rmsnorm: Terminal RMSNorm on the trunk (False only on
+                ablation-ladder rung 2).
+            distributional: Categorical head on the fixed support; False
+                (ladder rungs 2-3) swaps in a scalar head, and ``forward``
+                then returns ``log_prob=None``.
         """
         super().__init__()
         self.ensemble_size = ensemble_size
         self.n_atoms = n_atoms
+        self.distributional = distributional
         in_features = obs_dim + act_dim
         self.embedder = EnsembleEmbedder(ensemble_size, in_features, hidden)
         self.blocks = nn.ModuleList(EnsembleBlock(ensemble_size, hidden) for _ in range(num_blocks))
-        self.out_norm = EnsembleUnitRMSNorm(ensemble_size, hidden)
-        self.head = EnsembleCategoricalValue(ensemble_size, hidden, n_atoms, v_min, v_max)
+        self.out_norm: nn.Module = (
+            EnsembleUnitRMSNorm(ensemble_size, hidden) if use_rmsnorm else nn.Identity()
+        )
+        self.head: nn.Module = (
+            EnsembleCategoricalValue(ensemble_size, hidden, n_atoms, v_min, v_max)
+            if distributional
+            else EnsembleScalarValue(ensemble_size, hidden)
+        )
 
     @property
     def bin_values(self) -> torch.Tensor:
-        """The support atoms, shape ``(1, 1, n_atoms)``."""
+        """The support atoms, shape ``(1, 1, n_atoms)`` (distributional head only)."""
+        assert isinstance(self.head, EnsembleCategoricalValue)
         return self.head.bin_values
 
     def features(self, obs: torch.Tensor, act: torch.Tensor, training: bool) -> torch.Tensor:
@@ -239,7 +283,7 @@ class FlashSACDoubleCritic(nn.Module):
 
     def forward(
         self, obs: torch.Tensor, act: torch.Tensor, training: bool
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
         """Evaluate both members on the same ``(obs, act)`` batch.
 
         Args:
@@ -251,11 +295,14 @@ class FlashSACDoubleCritic(nn.Module):
                 False — that asymmetry is deliberate.
 
         Returns:
-            ``(q, log_prob)`` with shapes ``(E, B)`` and ``(E, B, n_atoms)``.
+            ``(q, log_prob)`` with shapes ``(E, B)`` and ``(E, B, n_atoms)``;
+            ``log_prob`` is None with the scalar (non-distributional) head.
         """
         q, log_prob = self.head(self.features(obs, act, training))
         assert q.shape == (self.ensemble_size, obs.shape[0])
-        assert log_prob.shape == (self.ensemble_size, obs.shape[0], self.n_atoms)
+        if self.distributional:
+            assert log_prob is not None
+            assert log_prob.shape == (self.ensemble_size, obs.shape[0], self.n_atoms)
         return q, log_prob
 
     def normalize_parameters(self) -> None:

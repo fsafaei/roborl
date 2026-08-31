@@ -381,6 +381,32 @@ ladder's job. Wall-clock honesty: ~8 SPS under 8-way CPU parallelism,
 far below SAC's — the paper's speed claim lives at the 1024-env GPU
 operating point we do not exercise.
 
+## Ablation ladder configuration
+
+The paper's §6.3 architectural ablation, one flag per rung, on Walker2d-v4
+(the env with the largest FlashSAC-vs-SAC effect, hence the most
+attribution signal), 3 seeds × 1M steps per rung:
+
+| Rung | Adds | Config |
+|---|---|---|
+| 1 | SAC baseline | the existing verified `sac` runs (CleanRL hyperparameters) |
+| 2 | residual blocks with BatchNorm (+ the cross-batch treatment BN requires) | `--exp-name flashsac_abl2 --no-use-rmsnorm --no-use-distributional --no-use-weight-norm --no-use-flash-exploration --alpha-init 1.0` |
+| 3 | + terminal RMSNorm | rung 2 minus `--no-use-rmsnorm` (`flashsac_abl3`) |
+| 4 | + categorical distributional critic & adaptive reward scaling | rung 3 minus `--no-use-distributional` (`flashsac_abl4`) |
+| 5 | + unit weight normalisation | rung 4 minus `--no-use-weight-norm` (`flashsac_abl5`) |
+| 6 | + unified entropy target & noise repetition = full FlashSAC | the existing verified `flashsac` runs |
+
+Honest caveats. (a) Rungs 2–6 all use FlashSAC's training recipe (batch
+512, cosine LR, τ = 0.01, plain-skip actor period, 10k warmup), so
+adjacent-rung deltas within 2–6 are clean; the rung 1→2 delta additionally
+includes the recipe change — SAC's own hyperparameters are part of the
+baseline. (b) Cross-batch prediction (change #3) is not a rung: train-mode
+BatchNorm without it compares quantities under different normalisation
+statistics, so it ships with the architecture at rung 2 (as in CrossQ).
+(c) Rungs 2–5 use SAC's `-dim(A)` entropy target with `alpha_init = 1.0`
+(the FlashSAC values are part of change #5/#6). (d) Rungs 1 and 6 reuse
+the verified 5-seed campaigns; new rungs run 3 seeds.
+
 ## Pass B diff table
 
 Component-by-component diff against `github.com/Holiday-Robot/FlashSAC`
