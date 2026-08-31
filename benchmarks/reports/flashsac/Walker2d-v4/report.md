@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `flashsac` |
 | Environment | `Walker2d-v4` |
-| Commit | `c9c64a413834` (dirty) |
+| Commit | `38223c3a39f8` (dirty) |
 | Our runs | 5 |
 | Reference runs | 5 (roborl SAC (verified)) |
 | Final window | last 10% of training |

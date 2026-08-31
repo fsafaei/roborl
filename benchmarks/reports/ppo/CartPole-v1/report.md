@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `ppo` |
 | Environment | `CartPole-v1` |
-| Commit | `4ed2bee432de` (dirty) |
+| Commit | `4ed2bee432de` |
 | Our runs | 5 |
 | Reference runs | 6 (cleanrl) |
 | Final window | last 10% of training |

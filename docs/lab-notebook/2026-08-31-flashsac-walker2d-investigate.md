@@ -3,7 +3,7 @@
 **Date:** 2026-08-31 ·
 **Trigger:** `roborl benchmark compare` verdict on
 [benchmarks/reports/flashsac/Walker2d-v4](../../benchmarks/reports/flashsac/Walker2d-v4/report.md) ·
-**Runs:** 5 seeds × 1M steps at commit `1f99c7c` (W&B group `flashsac-Walker2d-v4`)
+**Runs:** 5 seeds × 1M steps at commit `38223c3` (W&B group `flashsac-Walker2d-v4`; second campaign wave — identical algorithm source to wave 1's `1f99c7c`)
 
 ## Symptom
 

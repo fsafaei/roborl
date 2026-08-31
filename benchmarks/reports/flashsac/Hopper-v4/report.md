@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `flashsac` |
 | Environment | `Hopper-v4` |
-| Commit | `4f5f6fdd1564` (dirty) |
+| Commit | `1f99c7c24adb` (s1-s3), `38223c3a39f8` (s4-s5) — identical algorithm source, both dirty |
 | Our runs | 5 |
 | Reference runs | 5 (roborl SAC (verified)) |
 | Final window | last 10% of training |

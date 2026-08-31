@@ -355,7 +355,7 @@ implementation are marked *(added in Pass A)*.
 
 ## Verification results (lifecycle steps 5-6)
 
-5 seeds × 1M steps per environment at commit `1f99c7c`, the authors' CPU
+5 seeds × 1M steps per environment at commits `1f99c7c` (wave 1: HalfCheetah, Hopper s1-s3) / `38223c3` (wave 2: Hopper s4-s5, Walker2d; identical algorithm source — tooling-only diff), the authors' CPU
 recipe, no hyperparameter overrides; compared against **our
 CleanRL-verified SAC** episode curves through `roborl benchmark compare`
 (there is no CleanRL FlashSAC reference). IQM over the last 10% of

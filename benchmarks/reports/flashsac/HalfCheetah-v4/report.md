@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `flashsac` |
 | Environment | `HalfCheetah-v4` |
-| Commit | `38223c3a39f8` (dirty) |
+| Commit | `1f99c7c24adb` (dirty) |
 | Our runs | 5 |
 | Reference runs | 5 (roborl SAC (verified)) |
 | Final window | last 10% of training |
