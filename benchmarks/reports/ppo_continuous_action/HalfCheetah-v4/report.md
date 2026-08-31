@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `ppo_continuous_action` |
 | Environment | `HalfCheetah-v4` |
-| Commit | `088f3cc7cb19` (dirty) |
+| Commit | `9203c4a7ef14` (dirty) |
 | Our runs | 5 |
 | Reference runs | 9 (cleanrl) |
 | Final window | last 10% of training |

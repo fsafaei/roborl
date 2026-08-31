@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `sac` |
 | Environment | `HalfCheetah-v4` |
-| Commit | `088f3cc7cb19` (dirty) |
+| Commit | `cb421b3c883a` (dirty) |
 | Our runs | 5 |
 | Reference runs | 6 (CleanRL (openrlbenchmark)) |
 | Final window | last 10% of training |

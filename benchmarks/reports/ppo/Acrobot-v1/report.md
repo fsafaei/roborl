@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `ppo` |
 | Environment | `Acrobot-v1` |
-| Commit | `088f3cc7cb19` (dirty) |
+| Commit | `4ed2bee432de` (dirty) |
 | Our runs | 5 |
 | Reference runs | 6 (cleanrl) |
 | Final window | last 10% of training |

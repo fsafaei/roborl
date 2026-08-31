@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `ppo` |
 | Environment | `MountainCar-v0` |
-| Commit | `088f3cc7cb19` (dirty) |
+| Commit | `f9be429f01ef` (dirty) |
 | Our runs | 5 |
 | Reference runs | 6 (cleanrl) |
 | Final window | last 10% of training |
