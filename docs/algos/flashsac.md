@@ -353,6 +353,34 @@ implementation are marked *(added in Pass A)*.
 | 15 | n-step semantics under mid-window truncation | reference uses `gamma ** n` unconditionally (approximation); not exercised at n_step = 1 | **Pass B: confirmed** (`update_critic` passes `gamma**n_step`; the buffer stops reward accumulation at done but the discount power is fixed) |
 | 16 | Which update count parameterises each optimiser's LR schedule *(added in Pass A)* | Pass A guessed per-optimiser budgets (all ending at 1.5e-4) | **Pass B: WRONG — fixed.** One shared horizon `decay_steps = total env steps × UTD` for all three; each steps per its own update, so actor and temperature end mid-cosine at ~2.25e-4 |
 
+## Verification results (lifecycle steps 5-6)
+
+5 seeds × 1M steps per environment at commit `1f99c7c`, the authors' CPU
+recipe, no hyperparameter overrides; compared against **our
+CleanRL-verified SAC** episode curves through `roborl benchmark compare`
+(there is no CleanRL FlashSAC reference). IQM over the last 10% of
+training, 95% stratified bootstrap CIs:
+
+| Environment | FlashSAC IQM [95% CI] | roborl SAC IQM [95% CI] | Harness verdict | Reading |
+|---|---|---|---|---|
+| HalfCheetah-v4 | 12773.08 [12128.06, 13084.16] | 10367.25 [8127.52, 11703.52] | INVESTIGATE | significant **improvement** — [diagnosis](../lab-notebook/2026-08-30-flashsac-halfcheetah-investigate.md) |
+| Hopper-v4 | 2968.38 [2916.37, 3202.74] | 3082.19 [2603.61, 3388.67] | PASS | parity, with a visibly tighter CI |
+| Walker2d-v4 | 6123.55 [5954.14, 6531.65] | 4609.62 [4204.40, 5058.98] | INVESTIGATE | significant **improvement** — [diagnosis](../lab-notebook/2026-08-31-flashsac-walker2d-investigate.md) |
+
+The INVESTIGATE verdicts are the parity-based policy firing on
+*non-overlap in FlashSAC's favour*; the lab-notebook entries hold the
+evidence (raw env returns, clamp fraction exactly 0 on every seed, grad
+norms 0.016–0.035 with no clipping, feature norms pinned at ≈ √256,
+settled reward scales). Reports:
+[benchmarks/reports/flashsac/](../../benchmarks/reports/flashsac/).
+
+Because this is the 1-env / UTD-1 operating point, these gains come from
+the paper's **stability** half only, and a three-env aggregate cannot
+attribute them to any single one of the six changes — that is the ablation
+ladder's job. Wall-clock honesty: ~8 SPS under 8-way CPU parallelism,
+far below SAC's — the paper's speed claim lives at the 1024-env GPU
+operating point we do not exercise.
+
 ## Pass B diff table
 
 Component-by-component diff against `github.com/Holiday-Robot/FlashSAC`

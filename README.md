@@ -89,7 +89,7 @@ and every link you might want.
 | SAC | Pendulum, MuJoCo | verified ✅ | CleanRL | [↓ SAC results](#sac) |
 | PPO (discrete) | CartPole, Acrobot, MountainCar, LunarLander | verified ✅ | CleanRL | [↓ PPO discrete results](#ppo-discrete) |
 | PPO (continuous) | Pendulum, MuJoCo | verified ✅ | CleanRL | [↓ PPO continuous results](#ppo-continuous) |
-| FlashSAC ([Kim et al., 2026](https://arxiv.org/abs/2604.04539)) | MuJoCo (authors' CPU recipe) | in progress — verification runs ongoing | roborl SAC (no CleanRL reference) | [↓ FlashSAC status](#flashsac) |
+| FlashSAC ([Kim et al., 2026](https://arxiv.org/abs/2604.04539)) | MuJoCo (authors' CPU recipe) | verified ✅ (vs roborl SAC) | roborl SAC (no CleanRL reference) | [↓ FlashSAC results](#flashsac) |
 | HER + SAC | Fetch (Reach, Push, PickAndPlace) | planned | SB3/zoo + published results | — |
 
 Beyond these, the roadmap ends in **vision-language-action (VLA) policies**
@@ -221,13 +221,38 @@ authors' own CPU/MuJoCo recipe, which exercises the paper's *stability*
 half only; there is no CleanRL reference, so the comparison baseline is
 **our CleanRL-verified SAC** at the same budget.
 
-**Status: verification runs in progress** (5 seeds × 1M steps on
-HalfCheetah-v4 / Hopper-v4 / Walker2d-v4). No numbers are reported until
-the committed reports land — watch the live curves in the meantime:
+At this operating point (1 env, UTD 1) the harness verdict is a *parity*
+test against a different algorithm, so it fires INVESTIGATE for
+"significantly better" too — those rows link the lab-notebook diagnosis.
 
-📈 [W&B report (live)](https://wandb.ai/fsafaei/roborl/reports/FlashSAC-results--VmlldzoxNzgyNjA5Nw==) ·
+| Environment | FlashSAC IQM [95% CI] | roborl SAC IQM [95% CI] | Verdict |
+|---|---|---|---|
+| HalfCheetah-v4 | **12773** [12128, 13084] | 10367 [8128, 11704] | [**INVESTIGATE** → significant improvement](benchmarks/reports/flashsac/HalfCheetah-v4/report.md) ([diagnosis](docs/lab-notebook/2026-08-30-flashsac-halfcheetah-investigate.md)) |
+| Hopper-v4 | **2968** [2916, 3203] | 3082 [2604, 3389] | [**PASS** — parity, tighter CI](benchmarks/reports/flashsac/Hopper-v4/report.md) |
+| Walker2d-v4 | **6124** [5954, 6532] | 4610 [4204, 5059] | [**INVESTIGATE** → significant improvement](benchmarks/reports/flashsac/Walker2d-v4/report.md) ([diagnosis](docs/lab-notebook/2026-08-31-flashsac-walker2d-investigate.md)) |
+
+These gains come from the paper's stability half only, and the aggregate
+cannot attribute them to individual changes — that's the planned ablation
+ladder's job. Wall-clock per step is honestly *worse* than SAC's here
+(~11× parameters); the paper's speed claim lives at its GPU operating
+point.
+
+📈 [W&B report](https://wandb.ai/fsafaei/roborl/reports/FlashSAC-results--VmlldzoxNzgyNjA5Nw==) ·
 🗂 [W&B workspace](https://wandb.ai/fsafaei/roborl?nw=i0pn8lj2939) ·
-📝 [spec note](docs/algos/flashsac.md)
+📝 [spec note](docs/algos/flashsac.md) ·
+📄 [committed reports](benchmarks/reports/flashsac)
+
+<details>
+<summary><b>Learning curves</b> — FlashSAC vs roborl SAC, per environment (click to expand)</summary>
+
+#### HalfCheetah-v4
+![FlashSAC on HalfCheetah-v4](benchmarks/reports/flashsac/HalfCheetah-v4/curves.png)
+#### Hopper-v4
+![FlashSAC on Hopper-v4](benchmarks/reports/flashsac/Hopper-v4/curves.png)
+#### Walker2d-v4
+![FlashSAC on Walker2d-v4](benchmarks/reports/flashsac/Walker2d-v4/curves.png)
+
+</details>
 
 ## How verification works
 
