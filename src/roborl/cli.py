@@ -81,6 +81,12 @@ class BenchmarkWandbReportArgs:
     """CleanRL exp_name to overlay from openrlbenchmark/cleanrl."""
     reports_dir: Path | None = Path("benchmarks/reports")
     """Committed harness reports root; adds each env's verdict + IQM table to its section."""
+    ours_runset_label: str | None = None
+    """Chart-legend name for our run set (default "<algo> (roborl)")."""
+    baseline_runset_label: str | None = None
+    """Chart-legend name for the baseline run set."""
+    reference_runset_label: str | None = None
+    """Chart-legend name for the CleanRL reference run set."""
     update_url: str | None = None
     """Existing report URL to update in place (keeps the link stable)."""
     metrics: list[str] = field(default_factory=lambda: ["charts/episodic_return", "charts/SPS"])
@@ -161,6 +167,9 @@ def _run_benchmark(args: BenchmarkArgs) -> None:
             reference_exp_name=command.reference_exp_name,
             reports_dir=command.reports_dir,
             update_url=command.update_url,
+            ours_runset_label=command.ours_runset_label,
+            baseline_runset_label=command.baseline_runset_label,
+            reference_runset_label=command.reference_runset_label,
         )
         print(f"report: {url}")
     elif isinstance(command, BenchmarkFetchArgs):

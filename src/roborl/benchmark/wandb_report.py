@@ -108,6 +108,9 @@ def build_report(
     reference_exp_name: str | None = None,
     reports_dir: Path | None = None,
     update_url: str | None = None,
+    ours_runset_label: str | None = None,
+    baseline_runset_label: str | None = None,
+    reference_runset_label: str | None = None,
 ) -> str:
     """Create (or overwrite-as-new) the experiment's W&B report.
 
@@ -129,6 +132,10 @@ def build_report(
             table extracted from ``<reports_dir>/<algo>/<env_id>/report.md``.
         update_url: Existing report URL to update in place (keeps the link
             stable); None creates a new report.
+        ours_runset_label: Display name for our run set in the chart
+            legends (default ``"<algo> (roborl)"``).
+        baseline_runset_label: Display name for the baseline run set.
+        reference_runset_label: Display name for the CleanRL run set.
 
     Returns:
         The saved report's URL.
@@ -145,18 +152,20 @@ def build_report(
         blocks.append(wr.MarkdownBlock(text=intro))
 
     for env_id in env_ids:
-        runsets = [_runset(resolved_entity, project, algo, env_id, f"{algo} (roborl)")]
+        ours_label = ours_runset_label or f"{algo} (roborl)"
+        runsets = [_runset(resolved_entity, project, algo, env_id, ours_label)]
         if baseline_algo:
-            baseline_label = f"{baseline_algo} (roborl)"
+            baseline_label = baseline_runset_label or f"{baseline_algo} (roborl)"
             runsets.append(_runset(resolved_entity, project, baseline_algo, env_id, baseline_label))
         if reference_exp_name:
+            reference_label = reference_runset_label or f"{reference_exp_name} (CleanRL reference)"
             runsets.append(
                 _runset(
                     REFERENCE_ENTITY,
                     REFERENCE_PROJECT,
                     reference_exp_name,
                     env_id,
-                    f"{reference_exp_name} (CleanRL reference)",
+                    reference_label,
                 )
             )
         blocks.append(wr.H2(text=env_id))
