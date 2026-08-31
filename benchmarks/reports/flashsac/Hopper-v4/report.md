@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `flashsac` |
 | Environment | `Hopper-v4` |
-| Commit | `4f5f6fdd1564` (dirty) |
+| Commit | `2461dc803d9a` (dirty) |
 | Our runs | 5 |
 | Reference runs | 5 (roborl SAC (verified)) |
 | Final window | last 10% of training |
@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | 2968.38 | [2916.37, 3202.74] |
+| roborl FlashSAC | 2968.38 | [2916.37, 3202.74] |
 | roborl SAC (verified) | 3082.19 | [2603.61, 3388.67] |
 
 ## Sample efficiency

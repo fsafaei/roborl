@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `flashsac` |
 | Environment | `HalfCheetah-v4` |
-| Commit | `38223c3a39f8` (dirty) |
+| Commit | `2461dc803d9a` (dirty) |
 | Our runs | 5 |
 | Reference runs | 5 (roborl SAC (verified)) |
 | Final window | last 10% of training |
@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | 12773.08 | [12128.06, 13084.16] |
+| roborl FlashSAC | 12773.08 | [12128.06, 13084.16] |
 | roborl SAC (verified) | 10367.25 | [8127.52, 11703.52] |
 
 ## Sample efficiency

@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `flashsac` |
 | Environment | `Walker2d-v4` |
-| Commit | `c9c64a413834` (dirty) |
+| Commit | `2461dc803d9a` (dirty) |
 | Our runs | 5 |
 | Reference runs | 5 (roborl SAC (verified)) |
 | Final window | last 10% of training |
@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | 6123.55 | [5954.14, 6531.65] |
+| roborl FlashSAC | 6123.55 | [5954.14, 6531.65] |
 | roborl SAC (verified) | 4609.62 | [4204.40, 5058.98] |
 
 ## Sample efficiency

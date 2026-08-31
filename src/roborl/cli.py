@@ -53,6 +53,8 @@ class BenchmarkCompareArgs:
     """Output directory (default: benchmarks/reports/<algo>/<env_id>)."""
     reference_label: str = "reference"
     """Label for the reference source in figure and report."""
+    ours_label: str = "roborl"
+    """Label for our run set — override when the reference is also roborl."""
 
 
 @dataclass(frozen=True)
@@ -178,10 +180,11 @@ def _run_benchmark(args: BenchmarkArgs) -> None:
             env_id=command.env_id,
             out_dir=out_dir,
             reference_label=command.reference_label,
+            ours_label=command.ours_label,
         )
         print(
             f"verdict: {result.verdict}\n"
-            f"roborl final IQM {result.ours_iqm:.2f} "
+            f"{command.ours_label} final IQM {result.ours_iqm:.2f} "
             f"[{result.ours_ci[0]:.2f}, {result.ours_ci[1]:.2f}] (n={result.n_ours})  vs  "
             f"{command.reference_label} {result.reference_iqm:.2f} "
             f"[{result.reference_ci[0]:.2f}, {result.reference_ci[1]:.2f}] "
