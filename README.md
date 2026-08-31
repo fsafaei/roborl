@@ -233,9 +233,12 @@ test against a different algorithm, so it fires INVESTIGATE for
 
 These gains come from the paper's stability half only, and the aggregate
 cannot attribute them to individual changes — that's the planned ablation
-ladder's job. Wall-clock per step is honestly *worse* than SAC's here
-(~11× parameters); the paper's speed claim lives at its GPU operating
-point.
+ladder's job. The claim is **sample efficiency at matched env steps**, not
+compute efficiency: per step FlashSAC cost ~30× SAC's wall-clock in these
+campaigns (~8 vs ~225 SPS), and a wall-clock-matched SAC — some ~30M steps
+in the same time, with its 1M curves still rising — would plausibly match
+or exceed these numbers on this hardware. The paper's speed claim lives at
+its 1024-env GPU operating point, which this CPU recipe does not exercise.
 
 📈 [W&B report](https://wandb.ai/fsafaei/roborl/reports/FlashSAC-results--VmlldzoxNzgyNjA5Nw==) ·
 🗂 [W&B workspace](https://wandb.ai/fsafaei/roborl?nw=i0pn8lj2939) ·

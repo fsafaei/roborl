@@ -377,9 +377,21 @@ settled reward scales). Reports:
 Because this is the 1-env / UTD-1 operating point, these gains come from
 the paper's **stability** half only, and a three-env aggregate cannot
 attribute them to any single one of the six changes — that is the ablation
-ladder's job. Wall-clock honesty: ~8 SPS under 8-way CPU parallelism,
-far below SAC's — the paper's speed claim lives at the 1024-env GPU
-operating point we do not exercise.
+ladder's job.
+
+**Wall-clock honesty — the claim is sample efficiency, not compute
+efficiency.** The verdicts compare at a matched budget of **environment
+steps** (1M). Per step, FlashSAC cost ~30× more wall-clock than SAC in
+these campaigns (recorded `charts/SPS`: ~8 vs ~225–260, under 8-way / 4-way
+CPU contention respectively): ~35 h versus ~1.2 h per run. Given
+FlashSAC's wall-clock budget, SAC could collect roughly 30M env steps —
+and its 1M-step curves on HalfCheetah and Walker2d were still rising — so
+at *matched wall-clock on this hardware* SAC would plausibly match or
+exceed these results. We make no wall-clock claim in either direction; a
+wall-clock-matched SAC baseline has not been run. This inversion is the
+expected consequence of the operating point: the paper's speed claim lives
+at 1024 GPU-simulated envs with UTD 2/1024, where samples are nearly free
+and updates are rare — the opposite of 1 CPU env at UTD 1.
 
 ## Ablation ladder configuration
 
