@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `ppo_continuous_action` |
 | Environment | `Walker2d-v4` |
-| Commit | `9203c4a7ef14` (dirty) |
+| Commit | `088f3cc7cb19` (dirty) |
 | Our runs | 5 |
 | Reference runs | 9 (cleanrl) |
 | Final window | last 10% of training |
@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | 2998.91 | [2436.08, 3355.76] |
+| roborl PPO (continuous) | 2998.91 | [2436.08, 3355.76] |
 | cleanrl | 2978.08 | [2364.76, 3514.43] |
 
 ## Sample efficiency

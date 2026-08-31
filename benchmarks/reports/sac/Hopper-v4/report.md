@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `sac` |
 | Environment | `Hopper-v4` |
-| Commit | `cb421b3c883a` (dirty) |
+| Commit | `088f3cc7cb19` (dirty) |
 | Our runs | 5 |
 | Reference runs | 6 (CleanRL (openrlbenchmark)) |
 | Final window | last 10% of training |
@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | 3082.19 | [2603.61, 3388.67] |
+| roborl SAC | 3082.19 | [2603.61, 3388.67] |
 | CleanRL (openrlbenchmark) | 2366.30 | [2045.23, 2720.89] |
 
 ## Sample efficiency

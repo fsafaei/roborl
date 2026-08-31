@@ -25,6 +25,7 @@
 
 - Ours: `runs/flashsac-Walker2d-v4-s1-20260830T023947.csv`, `runs/flashsac-Walker2d-v4-s2-20260830T024300.csv`, `runs/flashsac-Walker2d-v4-s3-20260830T024337.csv`, `runs/flashsac-Walker2d-v4-s4-20260830T024341.csv`, `runs/flashsac-Walker2d-v4-s5-20260830T024344.csv`
 - Reference: `runs/sac-Walker2d-v4-s1-20260827T144739.csv`, `runs/sac-Walker2d-v4-s2-20260827T144740.csv`, `runs/sac-Walker2d-v4-s3-20260827T160151.csv`, `runs/sac-Walker2d-v4-s4-20260827T160225.csv`, `runs/sac-Walker2d-v4-s5-20260827T160231.csv`
+- W&B runs (group `flashsac-Walker2d-v4`, project `fsafaei/roborl`): [s1](https://wandb.ai/fsafaei/roborl/runs/r4g4ltoo), [s2](https://wandb.ai/fsafaei/roborl/runs/jhknlen8), [s3](https://wandb.ai/fsafaei/roborl/runs/ceztzey6), [s4](https://wandb.ai/fsafaei/roborl/runs/xcbzntcc), [s5](https://wandb.ai/fsafaei/roborl/runs/m7hk89st)
 
 Verdict policy: see `docs/benchmarking.md`. A PASS means our final IQM's CI
 overlaps the reference's (or IQM >= 90% of reference when the reference has

@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `ppo` |
 | Environment | `CartPole-v1` |
-| Commit | `4ed2bee432de` (dirty) |
+| Commit | `088f3cc7cb19` (dirty) |
 | Our runs | 5 |
 | Reference runs | 6 (cleanrl) |
 | Final window | last 10% of training |
@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | 488.92 | [472.18, 498.48] |
+| roborl PPO | 488.92 | [472.18, 498.48] |
 | cleanrl | 495.35 | [488.34, 498.78] |
 
 ## Sample efficiency

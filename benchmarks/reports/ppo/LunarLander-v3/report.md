@@ -28,7 +28,7 @@ consume:
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl (5 seeds) | 26.71 | [8.59, 40.67] |
+| roborl PPO (5 seeds) | 26.71 | [8.59, 40.67] |
 
 Per-seed final scores (mean return over the last 10% of steps):
 26.9, 47.5, 2.8, 20.2, 33.0 (seeds 1–5).

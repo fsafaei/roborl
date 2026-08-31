@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `sac` |
 | Environment | `HalfCheetah-v4` |
-| Commit | `cb421b3c883a` (dirty) |
+| Commit | `088f3cc7cb19` (dirty) |
 | Our runs | 5 |
 | Reference runs | 6 (CleanRL (openrlbenchmark)) |
 | Final window | last 10% of training |
@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | 10367.25 | [8127.52, 11703.52] |
+| roborl SAC | 10367.25 | [8127.52, 11703.52] |
 | CleanRL (openrlbenchmark) | 9750.26 | [8608.42, 11082.99] |
 
 ## Sample efficiency

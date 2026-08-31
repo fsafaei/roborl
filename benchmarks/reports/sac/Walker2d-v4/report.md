@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `sac` |
 | Environment | `Walker2d-v4` |
-| Commit | `cb421b3c883a` (dirty) |
+| Commit | `088f3cc7cb19` (dirty) |
 | Our runs | 5 |
 | Reference runs | 6 (CleanRL (openrlbenchmark)) |
 | Final window | last 10% of training |
@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | 4609.62 | [4204.40, 5058.98] |
+| roborl SAC | 4609.62 | [4204.40, 5058.98] |
 | CleanRL (openrlbenchmark) | 3846.62 | [3335.72, 4538.48] |
 
 ## Sample efficiency

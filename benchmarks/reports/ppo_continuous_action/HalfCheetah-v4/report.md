@@ -4,7 +4,7 @@
 |---|---|
 | Algorithm | `ppo_continuous_action` |
 | Environment | `HalfCheetah-v4` |
-| Commit | `9203c4a7ef14` (dirty) |
+| Commit | `088f3cc7cb19` (dirty) |
 | Our runs | 5 |
 | Reference runs | 9 (cleanrl) |
 | Final window | last 10% of training |
@@ -14,7 +14,7 @@
 
 | Run set | IQM | 95% CI |
 |---|---|---|
-| roborl | 1621.67 | [1420.81, 2187.99] |
+| roborl PPO (continuous) | 1621.67 | [1420.81, 2187.99] |
 | cleanrl | 1851.36 | [1390.33, 3231.94] |
 
 ## Sample efficiency

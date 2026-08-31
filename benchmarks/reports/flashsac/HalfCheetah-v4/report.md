@@ -25,6 +25,7 @@
 
 - Ours: `runs/flashsac-HalfCheetah-v4-s1-20260828T142321.csv`, `runs/flashsac-HalfCheetah-v4-s2-20260828T142321.csv`, `runs/flashsac-HalfCheetah-v4-s3-20260828T142321.csv`, `runs/flashsac-HalfCheetah-v4-s4-20260828T142321.csv`, `runs/flashsac-HalfCheetah-v4-s5-20260828T142321.csv`
 - Reference: `runs/sac-HalfCheetah-v4-s1-20260827T133406.csv`, `runs/sac-HalfCheetah-v4-s2-20260827T133406.csv`, `runs/sac-HalfCheetah-v4-s3-20260827T133406.csv`, `runs/sac-HalfCheetah-v4-s4-20260827T144628.csv`, `runs/sac-HalfCheetah-v4-s5-20260827T144728.csv`
+- W&B runs (group `flashsac-HalfCheetah-v4`, project `fsafaei/roborl`): [s1](https://wandb.ai/fsafaei/roborl/runs/3218wgif), [s2](https://wandb.ai/fsafaei/roborl/runs/mtyjk0zc), [s3](https://wandb.ai/fsafaei/roborl/runs/vnk16vr1), [s4](https://wandb.ai/fsafaei/roborl/runs/ld7d4sp5), [s5](https://wandb.ai/fsafaei/roborl/runs/8o35qht3)
 
 Verdict policy: see `docs/benchmarking.md`. A PASS means our final IQM's CI
 overlaps the reference's (or IQM >= 90% of reference when the reference has
