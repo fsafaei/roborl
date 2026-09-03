@@ -406,6 +406,18 @@ says so once and shows both.
 **Pilot rule:** a `FetchPush-v4` run flat at 300k steps is broken, not
 slow — debug before launching seeds.
 
+*Sanity gate result (2026-09-03, commit `5aa0612`, W&B run `ki4k3fdm`,
+`--device mps`, full recipe): PASSED.* `eval/success_rate` was 1.0 at the
+first pass (10k steps) and 1.0 at 100k; training success 1.0 with returns
+around −1 to −2 from ~10k on. Two transient eval dips (0.8 at 40k, 0.0 at
+70k — one pass of 20 deterministic episodes, return −48.9) recovered by the
+next pass; `diagnostics/q_lower_bound_violation` stayed at 0 throughout and
+`her_virtual_reward_zero_fraction` sat at 0.7–0.8 (Reach's slow gripper
+makes most future goals reachable within 5 cm — the 0.1–0.3 healthy band
+is a Push figure). Wall-clock 44 min at 38 SPS end to end. The recorded
+`git_dirty` flag comes from untracked files in the working tree; the
+algorithm source is exactly `5aa0612`.
+
 ### Ablation — `FetchPush-v4`, 3 seeds per rung, 1M steps
 
 | Rung | Config | The claim it isolates | Expectation (paper-shaped, to be confirmed or refuted) |
