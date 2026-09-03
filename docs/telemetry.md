@@ -58,6 +58,12 @@ this table as algorithms land.
 | `diagnostics/target_entropy` | FlashSAC: the entropy target `0.5·A·log(2πe·σ²)` (constant) | Exactly `-0.4782·A` for σ = 0.15 | Any other value → wrong action-dim or σ wiring |
 | `diagnostics/param_norm` | Global parameter norm | Slow drift | Runaway growth → no regularization pressure and diverging updates |
 | `eval/episodic_return` | Deterministic-policy return, evaluated every N steps | Tracks or exceeds training return | Large persistent train↔eval gap → exploration noise doing the work, or normalization statistics leaking between train and eval |
+| `eval/episodic_length` | Deterministic-policy episode length | Task-dependent; on Fetch pinned at 50 (episodes only truncate) | Anything but 50 on Fetch → the eval env is not the Fetch time limit you think it is |
+| `eval/success_rate` | HER: deterministic-policy final-step `is_success`, the headline number on goal-conditioned tasks | Reach → 1.0 within a few thousand steps; Push / PickAndPlace climb toward 0.9+ by 1M | Far below `diagnostics/success_rate` → eval plumbing (wrong env, wrong goal in the input) or an exploration-vs-mean gap |
+| `diagnostics/success_rate` | HER: final-step `is_success` of each training episode — the task's real progress signal (return and success are near-affine on sparse Fetch) | Push / P&P: near 0 for the first ~50–150k steps, then climbing; Reach → 1 fast | **Flat at 0 at 300k on Push with HER on** → relabeling or reward recomputation is broken; check this before anything else |
+| `diagnostics/her_virtual_fraction` | HER: realized share of relabeled rows in the minibatch | Exactly `k/(k+1)` (0.8 at k = 4), constant; 0 with HER off | Anything else → split arithmetic |
+| `diagnostics/her_virtual_reward_zero_fraction` | HER: share of relabeled rewards equal to 0 (goal hit under the substitute goal) | ≈ 0.1–0.3 on Fetch; the analytic floor from own-successor hits alone is `H_T/T` ≈ 0.09 at T = 50 | ≈ 0 → the reward is recomputed on the wrong achieved goal (pre-step instead of post-step) or the future-index math excludes the own successor; ≈ 1 → degenerate goals (achieved ≡ desired) |
+| `diagnostics/q_lower_bound_violation` | HER: fraction of the minibatch's `min(Q1, Q2)` below `−1/(1−γ)·1.05` (−21 at γ = 0.95) — the sparse-reward value floor. A diagnostic only; nothing is clipped | ≈ 0 after warm-up | Growing → value divergence: check done wiring (a relabeled success must not terminate), γ plumbing, the substituted goal being on both sides of the transition |
 
 ## How to read a W&B workspace
 
