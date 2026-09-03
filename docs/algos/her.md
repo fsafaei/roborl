@@ -290,11 +290,24 @@ Context, never verdicts: the zoo's published TQC+HER agent on
 Push/PickAndPlace typically ends near success rates of 0.9–1.0; Reach
 saturates at 1.0 within a few thousand steps.
 
-**Compute honesty.** `batch 2048` through `512³` MLPs, six network passes
-per env step, 1M steps: `charts/SPS` is measured on this machine during the
-Phase 4 pilot (CPU vs `--device mps`) and the campaign wall-clock
-(≈ 50M env steps in total: ours ≈ 10.5M + SB3 ≈ 10.5M + ablation 18M +
-Stage 2 ≈ 10M) is extrapolated in the report before anything long launches.
+**Compute honesty (measured 2026-09-03, Apple Silicon Mac, 10 cores,
+32 GB).** `batch 2048` through `512³` MLPs, six network passes per env
+step:
+
+| Loop / device | SPS (update phase) | Notes |
+|---|---|---|
+| `her-sac`, `--device mps` | 35–38 | Reach gate: 100k steps in 44 min; unaffected by concurrent CPU jobs |
+| `her-sac`, `--device cpu`, alone | ≈ 26 | one process at ~110 % CPU — the matmuls hit Accelerate/AMX, torch thread count does not scale (1/2/4/8 threads all 16.8 ms per 512³ update) |
+| `her-sac` CPU + SB3 CPU concurrently | 13.6 + 14.2 | **CPU aggregate is fixed at ≈ 27 SPS regardless of process count** |
+| SB3 SAC+HER, CPU | ≈ 14 under contention (≈ 27 alone, by the same bound) | must run on CPU: SB3 hands float64 dict observations to the device and MPS has no float64 |
+
+The machine therefore delivers ≈ 62 SPS in total (one MPS stream + one
+CPU-equivalent), i.e. about 5.4M env steps per day. At that rate: Stage 1
+verification alone (ours 10.5M + SB3 10.5M, and the SB3 half is CPU-only)
+≈ 4 days; the 18M-step ablation ≈ 3.5 more days; Stage 2 ≈ 2 more —
+≈ 9–10 days for the full ≈ 50M-step plan. This is the "unreasonable"
+branch of the plan: seed counts and scope are the user's decision, recorded
+below once made, not silently shrunk.
 
 ## The implementation details that matter (pitfall catalogue)
 
@@ -417,6 +430,20 @@ makes most future goals reachable within 5 cm — the 0.1–0.3 healthy band
 is a Push figure). Wall-clock 44 min at 38 SPS end to end. The recorded
 `git_dirty` flag comes from untracked files in the working tree; the
 algorithm source is exactly `5aa0612`.
+
+*Pilot (Phase 4b, `FetchPush-v4`, seed 1, commit `5aa0612`, `--device cpu`,
+W&B run `9iuu5pug`, 300k budget — reported at 70k while still running):*
+learning is clearly off the floor, so the pilot rule ("flat at 300k =
+broken") is already settled. `eval/success_rate` by 10k-step pass:
+0.15, 0.10, 0.05, 0.30, 0.55, 0.55, 0.60 (10k → 70k); training success per
+10k bin: 0.04, 0.06, 0.07, 0.15, 0.38, 0.56, 0.59, 0.67. Diagnostics:
+`her_virtual_reward_zero_fraction` 0.98 → 0.87 as the policy starts
+moving the box; `q_lower_bound_violation` peaked at 0.03–0.06 around 6–8k
+steps (the early transient while Q is still positive from the entropy
+bonus) and sat at ≈ 0.002 from 20k on; `alpha` decayed 1.0 → 0.003;
+`losses/qf1_values` ≈ −2.7 at 70k. A concurrent SB3 SAC+HER pilot with the
+identical recipe (CPU, 300k) sat at success 0.10 / return −45 over its
+last 20 episodes at 8k steps — too early to compare; both continue.
 
 ### Ablation — `FetchPush-v4`, 3 seeds per rung, 1M steps
 
