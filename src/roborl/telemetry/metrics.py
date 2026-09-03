@@ -56,7 +56,15 @@ CRITIC_FEATURE_NORM: Final = "diagnostics/critic_feature_norm"
 NOISE_REPEAT_LEN: Final = "diagnostics/noise_repeat_len"
 TARGET_ENTROPY: Final = "diagnostics/target_entropy"
 
+# HER (see docs/algos/her.md). Success lives in diagnostics/ and eval/, never
+# charts/, which stays CleanRL-shaped (ADR 0004).
+SUCCESS_RATE: Final = "diagnostics/success_rate"
+HER_VIRTUAL_FRACTION: Final = "diagnostics/her_virtual_fraction"
+HER_VIRTUAL_REWARD_ZERO_FRACTION: Final = "diagnostics/her_virtual_reward_zero_fraction"
+Q_LOWER_BOUND_VIOLATION: Final = "diagnostics/q_lower_bound_violation"
+
 # roborl additions (eval/): deterministic-policy evaluation, distinct from
 # the exploration-noised training return.
 EVAL_EPISODIC_RETURN: Final = "eval/episodic_return"
 EVAL_EPISODIC_LENGTH: Final = "eval/episodic_length"
+EVAL_SUCCESS_RATE: Final = "eval/success_rate"

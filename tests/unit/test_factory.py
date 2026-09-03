@@ -64,3 +64,19 @@ def test_index_offsets_seed() -> None:
     assert (obs_first != obs_second).any()
     first.close()
     second.close()
+
+
+@pytest.mark.unit
+def test_unknown_env_id_still_raises_name_not_found() -> None:
+    with pytest.raises(gym.error.NameNotFound):
+        make_env("DefinitelyNotAnEnv-v0", seed=0)()
+
+
+@pytest.mark.unit
+def test_fetch_env_registers_lazily_through_the_factory() -> None:
+    pytest.importorskip("gymnasium_robotics", reason="fetch extra not installed")
+    env = make_env("FetchReach-v4", seed=0)()
+    assert isinstance(env.observation_space, gym.spaces.Dict)
+    obs, _ = env.reset()
+    assert set(obs) == {"observation", "achieved_goal", "desired_goal"}
+    env.close()
