@@ -37,6 +37,15 @@ CleanRL-shaped SAC (listed in every report; see the Pass B table in
 step where CleanRL delays by 2 and compensates; SB3's critic loss carries a
 `0.5` factor; SB3's temperature loss differentiates `log α` rather than `α`.
 
+## Device
+
+Run the reference on **CPU** (`--device cpu`, the default resolves to it on
+a Mac). SB3 2.9.0 hands Fetch's float64 dict observations straight to the
+torch device, and MPS has no float64 (`TypeError: Cannot convert a MPS
+Tensor to float64` in `obs_as_tensor`); adding a cast wrapper would change
+the reference's env stack, so we don't. Our `her-sac` casts at the buffer
+boundary and runs on either device.
+
 ## Commands
 
 ```bash
