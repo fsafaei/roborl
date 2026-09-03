@@ -30,6 +30,9 @@ benchmark = [
   "pyarrow>=16",
   "wandb-workspaces>=0.4.9",
 ]
+# Gymnasium-Robotics Fetch tasks (HER). mujoco 3.12.0 broke its joint-type
+# enum comparison (set_joint_qpos asserts on every Fetch reset); <3.12 works.
+fetch = ["gymnasium-robotics>=1.4.2", "mujoco<3.12"]
 
 [dependency-groups]
 dev = [
@@ -117,6 +120,11 @@ warn_redundant_casts = true
 [[tool.mypy.overrides]]
 # moviepy ships no type stubs.
 module = ["moviepy.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# gymnasium-robotics ships no py.typed marker.
+module = ["gymnasium_robotics.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

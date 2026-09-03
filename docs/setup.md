@@ -37,9 +37,10 @@ Pendulum). Heavier simulators are opt-in:
 | `--extra mujoco` | MuJoCo environments (Hopper, HalfCheetah, ...) | Prebuilt wheels, CPU-friendly on all platforms |
 | `--extra box2d` | LunarLander, BipedalWalker | Needs `swig` at build time; uv resolves a `swig` wheel, but if the build still fails install swig via your package manager (`brew install swig` / `apt install swig`) |
 | `--extra benchmark` | pandas, pyarrow, matplotlib | Required for `roborl benchmark ...`; included in `make setup` |
+| `--extra fetch` | Gymnasium-Robotics Fetch tasks (Reach, Push, PickAndPlace) for HER | Pins `mujoco<3.12`: mujoco 3.12.0 breaks every Fetch reset in Gymnasium-Robotics 1.4.2 (joint-type enum regression, see ADR 0008). Combine with `--extra mujoco` freely |
 
-robosuite and Gymnasium-Robotics are deliberately **not** dependencies yet;
-they arrive with their roadmap phases.
+robosuite is deliberately **not** a dependency yet; it arrives with its
+roadmap phase.
 
 ## Developer setup
 

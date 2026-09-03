@@ -15,7 +15,7 @@ producing the same curves format (`run_id, global_step, episodic_return`):
 |---|---|---|
 | `openrlbenchmark` | implemented | CleanRL's public benchmark runs, fetched read-only from the `openrlbenchmark` W&B entity and cached as parquet under `.cache/benchref/` |
 | `cleanrl-local` | planned | Re-run pinned CleanRL scripts in an isolated uv environment for same-machine, same-env-version parity |
-| `sb3-zoo` | planned | For algorithms CleanRL lacks (e.g. HER) |
+| `sb3-local` | implemented | For algorithms CleanRL lacks: Stable-Baselines3 run **locally** in an isolated PEP 723 script environment (same machine, same env version, same hyperparameters), its `Monitor` CSVs converted to the curves format and fed through `compare --reference` (ADR 0008). First use: HER, `benchmarks/references/sb3-her/` |
 | `manual-csv` | implemented (trivially) | Published tables / arbitrary local curves via `roborl benchmark compare --reference <files>` |
 
 Confirm the exact CleanRL project and `exp_name` per algorithm in CleanRL's
