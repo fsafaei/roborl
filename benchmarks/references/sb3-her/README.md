@@ -48,11 +48,13 @@ uv run --script benchmarks/references/sb3-her/run_sb3_her.py \
 uv run --script benchmarks/references/sb3-her/to_curves.py \
     benchmarks/references/sb3-her/monitor/FetchPush-v4-s*.monitor.csv
 
-# compare ours against them (manual-csv path; no new adapter code)
+# compare ours against them (manual-csv path; no new adapter code).
+# The `[0-9].csv` suffix keeps the parallel `*-success.csv` files out of the
+# return-curve globs — compare rejects a file without episodic_return.
 uv run roborl benchmark compare \
-    --ours runs/her-sac-FetchPush-v4-s*.csv \
-    --reference benchmarks/references/sb3-her/curves/FetchPush-v4-s*.csv \
-    --algo her --env-id FetchPush-v4 --reference-label "SB3 SAC+HER (local)" \
+    --ours runs/her-sac-FetchPush-v4-s*[0-9].csv \
+    --reference benchmarks/references/sb3-her/curves/FetchPush-v4-s*[0-9].csv \
+    --algo her-sac --env-id FetchPush-v4 --reference-label "SB3 SAC+HER (local)" \
     --ours-label "roborl her-sac"
 ```
 
