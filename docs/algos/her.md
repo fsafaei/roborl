@@ -309,6 +309,26 @@ verification alone (ours 10.5M + SB3 10.5M, and the SB3 half is CPU-only)
 branch of the plan: seed counts and scope are the user's decision, recorded
 below once made, not silently shrunk.
 
+**Campaign status (2026-09-03): postponed until another machine is
+available.** Everything up to and including the pilots is done; Phases
+5–9 (SB3 reference seeds, our verification seeds, reports, ablation,
+Stage 2) have not started. Runs stopped by hand when the laptop was
+reclaimed, all at commit `5aa0612` (algorithm source):
+
+| Run | W&B / file | Stopped at | Last `eval/success_rate` passes |
+|---|---|---|---|
+| Push pilot, seed 1, CPU | `9iuu5pug` | 116k of 300k | 0.60, 0.60, 0.80, 0.65, 0.65 (70k → 110k) |
+| Push seed 1, MPS, 1M budget | `qdootgok` | 152k of 1M | 0.75, 0.80, 0.75, 0.80, 0.70, 0.80 (100k → 150k) |
+| SB3 SAC+HER Push pilot, CPU | `runs/pilots-2026-09-03/sb3-*.monitor.csv` (local, not committed) | 55k of 300k | training success 0.10 over its last 20 episodes |
+
+Both of our Push runs show the expected shape (near 0 for the first
+~40k, then a steep climb to 0.6–0.8 by 100–150k). W&B marks the two runs
+as crashed/killed; they are pilots, not verification evidence. Resume plan:
+launch Phases 5–6 on the new machine from this branch with the commands in
+`benchmarks/references/sb3-her/README.md` and
+`roborl her-sac --env-id <env> --seed <s> --save-episodes`, then Phase 7
+onward as written above.
+
 ## The implementation details that matter (pitfall catalogue)
 
 Each item is a way this implementation silently trains something that is
