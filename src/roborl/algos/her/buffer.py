@@ -20,6 +20,10 @@ done flag is ``terminated`` only — never truncation, and never a relabeled
 success. Sampling draws from NumPy's global generator, which
 ``seed_everything`` seeds, so same-seed runs replay the same minibatch and
 relabeling sequence.
+
+Pass B (``docs/algos/her.md``) diffed every rule here against SB3's
+``HerReplayBuffer``: the relabeling math matched line for line; the
+transition draw was aligned to SB3's uniform-over-valid-transitions.
 """
 
 from __future__ import annotations
@@ -360,7 +364,8 @@ class HerReplayBuffer:
 
         The algorithm, exactly (``docs/algos/her.md``):
 
-        1. ``ep`` uniform over committed episodes, ``t`` uniform within each.
+        1. ``(ep, t)`` uniform over all committed *transitions* (SB3
+           semantics; on fixed-length episodes this equals episode-then-step).
         2. A fixed count ``nb_virtual = int(k/(k+1) * batch)`` of rows — the
            head of the batch — is relabeled; the rest are real.
         3. Substitute goals are ``next_achieved[ep, f]`` (the goal achieved
@@ -380,16 +385,21 @@ class HerReplayBuffer:
         Raises:
             ValueError: If no episode has been committed yet.
         """
-        filled = np.flatnonzero(self._ep_len)
-        if filled.size == 0:
+        total = len(self)
+        if total == 0:
             raise ValueError(
                 "Cannot sample: no committed episode "
                 f"({self._staged} staged step(s) are not sampleable until commit_episode())."
             )
-        # 1. which transitions
-        ep = np.random.choice(filled, size=batch_size)
+        # 1. which transitions — uniform over committed transitions, then
+        # unravelled into (episode slot, step); empty slots have zero width
+        # in the cumulative lengths and are never hit.
+        flat = np.random.randint(0, total, size=batch_size)
+        cumulative = np.cumsum(self._ep_len)
+        ep = np.searchsorted(cumulative, flat, side="right")
         lengths = self._ep_len[ep]
-        t = np.random.randint(0, lengths)
+        t = flat - (cumulative[ep] - lengths)
+        assert np.all((t >= 0) & (t < lengths))
 
         # 2. real / virtual split — a fixed head of the batch, not a coin flip
         nb_virtual = int(self._p_her * batch_size)

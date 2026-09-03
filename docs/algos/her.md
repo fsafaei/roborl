@@ -155,11 +155,12 @@ RNG throughout (as everywhere in the repo), so same-seed runs replay the
 same minibatch *and* relabeling sequence:
 
 ```
-# 1. which transitions
-ep   = choice(filled_slots, size=B)                  # uniform over committed episodes
-t    = randint(0, ep_len[ep])                        # uniform within each episode
-# (episode-then-step equals uniform-over-transitions on fixed-length Fetch;
-#  asserted: all committed ep_len equal)
+# 1. which transitions — uniform over committed TRANSITIONS (SB3 semantics)
+flat = randint(0, sum(ep_len), size=B)
+ep   = searchsorted(cumsum(ep_len), flat, side="right")   # empty slots have zero width
+t    = flat - (cumsum(ep_len)[ep] - ep_len[ep])
+# (Pass A drew episode-then-step; identical on fixed-length Fetch, aligned
+#  to SB3 in Pass B so variable-length episodes weight by length.)
 
 # 2. real/virtual split — a fixed count, not a Bernoulli coin
 p_her      = her_k / (her_k + 1)                     # k = 4  ->  0.8
@@ -465,13 +466,13 @@ confirmed or overturned in Pass B.
 
 | # | Question | Resolution encoded | Confidence |
 |---|---|---|---|
-| 1 | Relabel at store time (paper: k extra stored copies) vs sample time | Sample time, SB3 online-sampling semantics; equivalent in expectation, half the memory | high — SB3 docs |
-| 2 | `future` index range | `randint(t, L)` high-exclusive; goals from `next_achieved`; includes own successor | high — SB3 semantics |
-| 3 | Which achieved goal feeds the recomputed reward | `next_achieved[t]` (post-step) | high |
-| 4 | Real/virtual split | Deterministic `int(0.8·B)` head of the batch | high |
-| 5 | Are real transitions' rewards recomputed too? | No — stored rewards; the recompute-consistency *test* proves they would match | high |
+| 1 | Relabel at store time (paper: k extra stored copies) vs sample time | Sample time, SB3 online-sampling semantics; equivalent in expectation, half the memory | **Pass B: confirmed** (`her_ratio = 1 − 1/(n_sampled_goal+1)`, applied per sampled batch) |
+| 2 | `future` index range | `randint(t, L)` high-exclusive; goals from `next_achieved`; includes own successor | **Pass B: confirmed** (`np.random.randint(current_indices_in_episode, batch_ep_length)`, goals from `next_observations["achieved_goal"]`; SB3 documents the inclusivity) |
+| 3 | Which achieved goal feeds the recomputed reward | `next_achieved[t]` (post-step) | **Pass B: confirmed** (`compute_reward(next_obs["achieved_goal"], obs["desired_goal"], infos)`, with a comment deriving exactly this) |
+| 4 | Real/virtual split | Deterministic `int(0.8·B)` head of the batch | **Pass B: confirmed** (`nb_virtual = int(her_ratio * batch_size)`; `np.split` — no coin flip; SB3 returns real rows first, ours virtual first — order is irrelevant to the update) |
+| 5 | Are real transitions' rewards recomputed too? | No — stored rewards; the recompute-consistency *test* proves they would match | **Pass B: confirmed** (`_get_real_samples` reads `self.rewards`) |
 | 6 | `learning_starts` | 1000 (zoo's Reach entry) instead of SB3's default 100; applied to **both** sides, listed in the report | n/a — shared choice |
-| 7 | Episode-uniform vs transition-uniform sampling | Episode-then-step; identical on fixed-length Fetch; asserted | high |
+| 7 | Episode-uniform vs transition-uniform sampling | Pass A: episode-then-step. **Pass B: SB3 is transition-uniform (`choice(valid_indices)`); aligned** — identical on fixed-length Fetch, differs only on variable-length episodes | high — Pass B |
 | 8 | γ for `her-flashsac` | 0.95 — γ is task-side (horizon); if Stage 2 stalls, a γ=0.99 probe is a *documented* deviation | judgement call |
 | 9 | Actor update cadence | `sac.py`'s delayed-compensated `policy_frequency=2` (CleanRL) though SB3 updates per step; same average update count | medium — micro-deviation, listed in reports |
 | 10 | Obs normalisation / clipping (Baselines had both) | None in Stage 1 (zoo Push/P&P has none); Stage 2 gets embedder BatchNorm inherently | high |
@@ -487,18 +488,46 @@ Recorded during implementation; each is confirmed or corrected in Pass B.
 
 | # | Question the spec leaves open | Pass A resolution | Status |
 |---|---|---|---|
-| A1 | What `sample` does when only some slots are filled and `B` exceeds the transition count | Sample with replacement over committed episodes regardless of count (SAC's buffer also samples with replacement); raise only when *no* episode is committed | pending Pass B |
-| A2 | Whether `compute_reward`'s output dtype/shape is trusted | Cast to float32 and assert shape `(B,)` after every call — Fetch returns float32 for sparse and float64 for dense | pending Pass B |
-| A3 | How `nb_virtual` behaves at `her_enabled=False` | `nb_virtual = 0`: the sampled batch is exactly a uniform batch of stored transitions with stored goals — the R0/R1 rungs differ from R5 in relabeling only | pending Pass B |
-| A4 | Whether the staging area is bounded | Staging holds at most `max_episode_steps` transitions and `add` raises beyond it — a loop that forgets to commit fails loudly instead of growing without bound | pending Pass B |
-| A5 | Episodes shorter than `T` (a terminating goal env) | Stored with their true `ep_len`; the sampler draws `t` and `f` inside `[0, ep_len)`; the "all lengths equal" check is a diagnostic assertion in the Fetch loop, not a buffer invariant | pending Pass B |
+| A1 | What `sample` does when only some slots are filled and `B` exceeds the transition count | Sample with replacement regardless of count; raise only when *no* episode is committed | **Pass B: confirmed** — `np.random.choice(valid_indices, replace=True)`; `RuntimeError` when nothing is valid |
+| A2 | Whether `compute_reward`'s output dtype/shape is trusted | Cast to float32 and assert shape `(B,)` after every call — Fetch returns float32 for sparse and float64 for dense | **Pass B: confirmed** — SB3 casts `.astype(np.float32)`; no shape check (ours is stricter) |
+| A3 | How `nb_virtual` behaves at `her_enabled=False` | `nb_virtual = 0`: the sampled batch is exactly a uniform batch of stored transitions with stored goals — the R0/R1 rungs differ from R5 in relabeling only | **Pass B: equivalent** — SB3 has no switch, but `n_sampled_goal = 0` gives `her_ratio = 0` and the same code path |
+| A4 | Whether the staging area is bounded | Staging holds at most `max_episode_steps` transitions and `add` raises beyond it — a loop that forgets to commit fails loudly instead of growing without bound | **Pass B: n/a** — SB3 writes into the flat ring immediately and marks the episode valid at `done`; ours is a stricter layout with the same sampleability rule |
+| A5 | Episodes shorter than `T` (a terminating goal env) | Stored with their true `ep_len`; the sampler draws `t` and `f` inside `[0, ep_len)` | **Pass B: confirmed** — SB3 tracks `ep_length` per transition and, after the row-7 alignment, weights episodes by length exactly as SB3 does |
 
 ## Pass B diff table
 
-*Pending — filled after Pass A passes its unit tests and smoke test.*
-Component rows to adjudicate: storage layout, sampling (episode/step
-draw), real/virtual split, goal selection index math per strategy, reward
-recomputation (which achieved goal, `info` handling), done handling and
-timeouts, normalisation hooks, handling of the in-progress episode, RNG
-source. Verdict per row: *matched* / *deviation, deliberate* /
-*deviation, bug — fixed*.
+Component-by-component diff against `DLR-RM/stable-baselines3` master
+(`3246f50`, 2026-08-17; `version.txt` 2.9.1a1; PyPI release 2.9.0), files
+`stable_baselines3/her/her_replay_buffer.py`,
+`her/goal_selection_strategy.py`, `common/buffers.py` (`DictReplayBuffer`),
+`common/off_policy_algorithm.py`, `sac/sac.py`. Performed after Pass A
+passed its unit tests and the FetchReach smoke test.
+
+| Component | SB3 | Ours (Pass A) | Verdict |
+|---|---|---|---|
+| Storage layout | Flat transition ring `(buffer_size, n_envs)` with per-transition `ep_start` / `ep_length`; an episode becomes valid (`ep_length > 0`) at `done`; overwriting *any* transition of an old episode zeroes that whole episode's `ep_length` | Episode-major `(N, T, …)` with a staging area; `commit_episode()` at `terminated or truncated`; whole-slot overwrite | **matched** (different layout, same sampleability rule; SB3 transiently loses one partially overwritten episode at wrap — ours never does) |
+| In-progress episode | `is_valid = ep_length > 0` masks it out; `RuntimeError` when no episode has finished | Never sampleable (staging); `ValueError` when nothing is committed | **matched** |
+| Transition draw | `np.random.choice(valid_indices, size=B, replace=True)` — uniform over valid **transitions** | Pass A: uniform over episodes, then uniform step | **deviation — aligned in Pass B**: now `randint(0, Σ ep_len)` unravelled through `cumsum(ep_len)`; identical on fixed-length Fetch, differs only for variable-length episodes (ambiguity row 7) |
+| Real / virtual split | `nb_virtual = int(her_ratio · B)`, `her_ratio = 1 − 1/(n_sampled_goal + 1)`; `np.split` → virtual = head of the drawn indices; output concatenates real first | Same count; virtual = head of the returned batch | **matched** (row order differs; the update is permutation-invariant) |
+| `future` index | `randint(current_idx_in_episode, ep_length)` — inclusive of the current transition (documented) | `randint(t, L)` | **matched** |
+| `final` index | `ep_length − 1` | same | **matched** |
+| `episode` index | `randint(0, ep_length)` | same | **matched** |
+| Goal source | `next_observations["achieved_goal"][transition_indices]` | `next_achieved[ep, f]` | **matched** |
+| Reward recomputation | `env_method("compute_reward", next_obs["achieved_goal"], new desired goal, infos)`, `infos = [{}]*n` unless `copy_info_dict`; `.astype(np.float32)` | `compute_reward(next_achieved[ep, t], goal, None)`; float32 cast + shape assert | **matched** (`None` vs `{}` placeholder: Fetch ignores `info`; ours additionally asserts the `(B,)` shape) |
+| Both sides | `obs["desired_goal"] = new_goals; next_obs["desired_goal"] = new_goals` | same goal concatenated onto `obs` and `next_obs` | **matched** |
+| Real rows | Stored `rewards`, stored goals, no recomputation | same | **matched** |
+| Done handling / timeouts | `dones · (1 − timeouts)`, `timeouts` from `info["TimeLimit.truncated"]` (`handle_timeout_termination=True`); `next_obs` is `terminal_observation` at `done` | store `terminated` only; true final observation from the non-autoresetting env | **matched** (ambiguity row 15) |
+| Relabeled dones | Same masked `dones` for virtual rows — never derived from the new reward | stored `terminated` bitwise | **matched** |
+| Normalisation hooks | `_normalize_obs` / `_normalize_reward` are no-ops without `VecNormalize` | none | **matched** (row 10) |
+| RNG source | `np.random.choice` / `np.random.randint` (global NumPy RNG) | same generator (different draw order — irrelevant) | **matched** |
+| `k` semantics | `n_sampled_goal` sets a *ratio* under online sampling, not extra stored copies | `her_k` → `k/(k+1)` | **matched** (row 1) |
+| Warmup / update cadence | random actions while `num_timesteps < learning_starts`; `train()` once `num_timesteps > learning_starts`, `train_freq = 1 step`, `gradient_steps = 1` (UTD 1); `target_update_interval = 1` | same boundaries (CleanRL's) | **matched** |
+| SAC update order (algorithm side) | per gradient step: temperature → critic → actor, **actor and temperature every step** | CleanRL: critic every step, actor + temperature every 2nd step ×2 (compensated) | **deviation, deliberate** (row 9; same average update count; kept for `sac.py` diffability; listed in reports) |
+| Critic loss scale | `0.5 · Σ_i MSE_i` | `Σ_i MSE_i` (CleanRL) | **deviation, deliberate** — a constant factor on the critic gradient, which Adam normalises away (beyond ε) |
+| Temperature loss | `−(log α · (log π + H̄).detach())` — gradient `−(log π + H̄)` | CleanRL `−(α · (log π + H̄))` — gradient `−α(log π + H̄)` | **deviation, deliberate** — same fixed point, different gradient scale; inherited from the verified SAC and already documented in `sac.md` |
+
+**Outcome.** Every relabeling rule matched SB3 on the first blind pass; the
+single alignment was the transition draw (no effect on Fetch). The
+remaining deviations are all on the SAC side and are the same ones the
+verified `sac.py` carries against SB3 — deliberate, listed here and in
+every report.

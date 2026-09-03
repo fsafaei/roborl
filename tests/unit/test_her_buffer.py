@@ -374,3 +374,35 @@ class TestBatchContract:
         buffer.commit_episode()
         with pytest.raises(ValueError, match="compute_reward returned shape"):
             buffer.sample_arrays(8)
+
+
+@pytest.mark.unit
+class TestTransitionUniformSampling:
+    def test_variable_length_episodes_are_weighted_by_length(self) -> None:
+        # Pass B alignment with SB3: draws are uniform over valid TRANSITIONS, so a
+        # 1-step episode next to a 3-step one gets ~1/4 of the rows, not 1/2.
+        buffer = make_buffer(buffer_size=3 * T)
+        buffer.add(
+            np.zeros(OBS_DIM), np.zeros(1), np.array([10.0]), np.zeros(1), -1.0,
+            np.ones(OBS_DIM), np.ones(1), False,
+        )  # fmt: skip
+        buffer.commit_episode()  # slot 0, length 1
+        stage_micro_episode(buffer, ag_offset=10.0)
+        buffer.commit_episode()  # slot 1, length 3
+        np.random.seed(5)
+        sample = buffer.sample_arrays(20_000)
+        share_short = float(np.mean(sample.episode_idx == 0))
+        assert abs(share_short - 0.25) < 0.02, share_short
+        assert np.all(sample.step_idx[sample.episode_idx == 0] == 0)
+        assert set(sample.step_idx[sample.episode_idx == 1].tolist()) == {0, 1, 2}
+
+    def test_empty_slots_between_committed_ones_are_never_drawn(self) -> None:
+        # Overwrite leaves the ring with a mix of slot ages; only non-empty slots appear.
+        buffer = make_buffer(buffer_size=4 * T)
+        stage_micro_episode(buffer, ag_offset=0.0)
+        buffer.commit_episode()  # slot 0
+        stage_micro_episode(buffer, ag_offset=10.0)
+        buffer.commit_episode()  # slot 1; slots 2, 3 empty
+        np.random.seed(6)
+        sample = buffer.sample_arrays(2000)
+        assert set(sample.episode_idx.tolist()) == {0, 1}
