@@ -104,3 +104,5 @@ algorithm and grouped by `env_id`, panels sectioned by metric namespace:
 - [PPO (discrete) view](https://wandb.ai/fsafaei/roborl?nw=olbo340c8wy)
 - [PPO (continuous) view](https://wandb.ai/fsafaei/roborl?nw=3wmwgm5mdsn)
 - [FlashSAC view](https://wandb.ai/fsafaei/roborl?nw=i0pn8lj2939)
+- [HER + SAC view](https://wandb.ai/fsafaei/roborl?nw=nudsg7ah1ng) (success-rate,
+  relabeling and Q-bound diagnostics panels; fills in as the campaign runs)
