@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Any
 
 import gymnasium as gym
 
@@ -48,11 +49,10 @@ def make_env(
     """
 
     def thunk() -> gym.Env:
+        render_kwargs = {"render_mode": "rgb_array"} if capture_video and idx == 0 else {}
+        env = _make_registered(env_id, **render_kwargs)
         if capture_video and idx == 0:
-            env = gym.make(env_id, render_mode="rgb_array")
             env = gym.wrappers.RecordVideo(env, video_folder=video_dir)
-        else:
-            env = gym.make(env_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
         env.reset(seed=seed + idx)
         env.action_space.seed(seed + idx)
@@ -60,3 +60,26 @@ def make_env(
         return env
 
     return thunk
+
+
+def _make_registered(env_id: str, **kwargs: Any) -> gym.Env:
+    """``gym.make`` that lazily registers Gymnasium-Robotics envs on first use.
+
+    Gymnasium 1.x has no entry-point autoloading: ``gym.make("FetchPush-v4")``
+    raises ``NameNotFound`` until ``gymnasium_robotics`` has been imported and
+    registered. On that error, import + register once and retry; if the
+    package itself is missing, re-raise with the install hint. A genuinely
+    unknown id still raises ``NameNotFound`` from the retry.
+    """
+    try:
+        return gym.make(env_id, **kwargs)
+    except gym.error.NameNotFound as err:
+        try:
+            import gymnasium_robotics
+        except ImportError:
+            raise gym.error.NameNotFound(
+                f"{err} If this is a Gymnasium-Robotics environment (Fetch*), install the "
+                "'fetch' extra: uv sync --extra fetch"
+            ) from err
+        gym.register_envs(gymnasium_robotics)
+        return gym.make(env_id, **kwargs)

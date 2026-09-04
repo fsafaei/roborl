@@ -15,7 +15,7 @@ producing the same curves format (`run_id, global_step, episodic_return`):
 |---|---|---|
 | `openrlbenchmark` | implemented | CleanRL's public benchmark runs, fetched read-only from the `openrlbenchmark` W&B entity and cached as parquet under `.cache/benchref/` |
 | `cleanrl-local` | planned | Re-run pinned CleanRL scripts in an isolated uv environment for same-machine, same-env-version parity |
-| `sb3-zoo` | planned | For algorithms CleanRL lacks (e.g. HER) |
+| `sb3-local` | implemented | For algorithms CleanRL lacks: Stable-Baselines3 run **locally** in an isolated PEP 723 script environment (same machine, same env version, same hyperparameters), its `Monitor` CSVs converted to the curves format and fed through `compare --reference` (ADR 0008). First use: HER, `benchmarks/references/sb3-her/` |
 | `manual-csv` | implemented (trivially) | Published tables / arbitrary local curves via `roborl benchmark compare --reference <files>` |
 
 Confirm the exact CleanRL project and `exp_name` per algorithm in CleanRL's
@@ -104,3 +104,5 @@ algorithm and grouped by `env_id`, panels sectioned by metric namespace:
 - [PPO (discrete) view](https://wandb.ai/fsafaei/roborl?nw=olbo340c8wy)
 - [PPO (continuous) view](https://wandb.ai/fsafaei/roborl?nw=3wmwgm5mdsn)
 - [FlashSAC view](https://wandb.ai/fsafaei/roborl?nw=i0pn8lj2939)
+- [HER + SAC view](https://wandb.ai/fsafaei/roborl?nw=nudsg7ah1ng) (success-rate,
+  relabeling and Q-bound diagnostics panels; fills in as the campaign runs)

@@ -23,7 +23,7 @@ uv run roborl benchmark fetch|compare    # verification harness (needs benchmark
 uv run pytest tests/unit/test_stats.py -k iqm    # run a single test file / selection
 ```
 
-Extras: `uv sync --extra mujoco|box2d|benchmark`; `--extra cpu` (lean CPU
+Extras: `uv sync --extra mujoco|box2d|benchmark|fetch`; `--extra cpu` (lean CPU
 torch, Linux CI) conflicts with `--extra cu130`. Never hand-edit `uv.lock`
 (`uv add`/`uv lock` only); CI fails on a stale lockfile (`uv lock --check`).
 

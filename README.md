@@ -64,14 +64,14 @@ locally for later `wandb sync`.
 
 ```
 src/roborl/
-├── cli.py           # `roborl` CLI: demo, sac, ppo, flashsac, benchmark ...
+├── cli.py           # `roborl` CLI: demo, sac, ppo, flashsac, her-sac, benchmark ...
 ├── config.py        # one frozen dataclass = one experiment
 ├── demo.py          # random-agent pipeline check — template for training scripts
 ├── utils/           # seeding, device resolution (cuda > mps > cpu)
 ├── envs/factory.py  # seeded env thunks with episode-stats & video wrappers
 ├── telemetry/       # W&B wrapper (online/offline/disabled) + canonical metric names
 ├── benchmark/       # reference fetching, IQM/CI statistics, plots, reports
-└── algos/           # sac, ppo (discrete + continuous), flashsac — one package each
+└── algos/           # sac, ppo (discrete + continuous), flashsac, her — one package each
 docs/                # setup, telemetry, debugging, lifecycle, benchmarking, ADRs, lab notebook
 benchmarks/reports/  # committed verification reports (the evidence)
 tests/               # unit + smoke (CPU, offline, fast)
@@ -90,7 +90,7 @@ and every link you might want.
 | PPO (discrete) | CartPole, Acrobot, MountainCar, LunarLander | verified ✅ | CleanRL | [↓ PPO discrete results](#ppo-discrete) |
 | PPO (continuous) | Pendulum, MuJoCo | verified ✅ | CleanRL | [↓ PPO continuous results](#ppo-continuous) |
 | FlashSAC ([Kim et al., 2026](https://arxiv.org/abs/2604.04539)) | MuJoCo (authors' CPU recipe) | verified ✅ (vs roborl SAC) | roborl SAC (no CleanRL reference) | [↓ FlashSAC results](#flashsac) |
-| HER + SAC | Fetch (Reach, Push, PickAndPlace) | planned | SB3/zoo + published results | — |
+| HER + SAC | Fetch (Reach, Push, PickAndPlace) | in progress | SB3 SAC+HER run locally (ADR 0008) | 📝 [spec note](docs/algos/her.md) |
 
 Beyond these, the roadmap ends in **vision-language-action (VLA) policies**
 for manipulation — a research phase building on existing open VLA models
@@ -272,7 +272,8 @@ reference's, **INVESTIGATE** otherwise — which triggers the
 Algorithms without a CleanRL reference go through the same harness against
 the best available baseline: FlashSAC compares against our own
 CleanRL-verified SAC (and the paper's published curves where they can be
-digitised faithfully); HER will verify against SB3/zoo results.
+digitised faithfully); HER verifies against Stable-Baselines3's SAC+HER run
+locally on the same env versions and hyperparameters (ADR 0008).
 
 Reports are committed under `benchmarks/reports/` and are the only thing
 that flips a status row to `verified ✅`. Details and thresholds:
@@ -295,7 +296,7 @@ modes look like: [docs/telemetry.md](docs/telemetry.md).
 | 0 ✅ | Infrastructure: tooling, telemetry, benchmark harness, docs, CI | — | — (random-agent pipeline check) | — |
 | 1 ✅ | Core model-free algorithms | CartPole-v1, Acrobot, Pendulum, (LunarLander w/ box2d), MuJoCo: Hopper, HalfCheetah, Walker2d | SAC, PPO (discrete + continuous) | CleanRL |
 | 2 ▶ | Scaling off-policy RL | MuJoCo + high-dimensional control tasks from the paper | FlashSAC ([Kim et al., 2026](https://arxiv.org/abs/2604.04539)): SAC with few-update/large-batch scaling and weight/feature/gradient norm bounding | published results (+ reference code if released) |
-| 3 | Goal-conditioned RL | Gymnasium-Robotics Fetch (Reach, Push, PickAndPlace) | HER + SAC | SB3/zoo + published results |
+| 3 ▶ | Goal-conditioned RL | Gymnasium-Robotics Fetch (Reach, Push, PickAndPlace) | HER + SAC, then HER + FlashSAC | SB3 SAC+HER run locally (ADR 0008); published zoo numbers as context only |
 | 4 | Contact-rich manipulation & VLAs | robosuite: Lift, Door, Wipe, NutAssembly, TwoArmPegInHole | FlashSAC/SAC variants; demonstrations, residual RL; then vision-language-action policies (fine-tuning and evaluating open VLA models) as research threads | published results + ablation baselines |
 
 Phase 1 uses locomotion *tasks* purely as standard verification benchmarks —

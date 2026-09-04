@@ -50,11 +50,13 @@ jobs:
         with:
           enable-cache: true
           python-version: ${{ matrix.python }}
+      # fetch (Gymnasium-Robotics + mujoco) so the HER Fetch smoke/determinism
+      # tests run here instead of skipping; no rendering, so no GL backend needed.
       - name: Install (lean CPU-only torch wheels on Linux)
         if: runner.os == 'Linux'
-        run: uv sync --group dev --extra cpu --extra benchmark
+        run: uv sync --group dev --extra cpu --extra benchmark --extra fetch
       - name: Install (default PyPI wheels on macOS)
         if: runner.os == 'macOS'
-        run: uv sync --group dev --extra benchmark
+        run: uv sync --group dev --extra benchmark --extra fetch
       - name: Run unit + smoke tests
         run: uv run pytest -m "unit or smoke"
