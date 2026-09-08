@@ -37,6 +37,7 @@ src/roborl/
 ├── utils/          # seeding.py (seed_everything), device.py (resolve_device)
 ├── envs/factory.py # make_env thunk: RecordEpisodeStatistics, RecordVideo, seeding
 ├── telemetry/      # logger.py (W&B wrapper: online/offline/disabled), metrics.py (canonical names)
+├── io/             # policy checkpoints (ADR 0009): save_policy/load_policy, versioned .pt read weights_only
 ├── benchmark/      # fetch.py (reference adapters), stats.py (IQM/CIs), plots.py, report.py
 └── algos/          # EMPTY until algorithms land — each in its own package
 ```

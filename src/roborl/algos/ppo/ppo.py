@@ -300,6 +300,8 @@ class PpoSummary:
         sps: Average environment steps per second.
         wandb_url: The W&B run URL when tracking online, else None.
         episodes_csv: Path of the saved episode log, when enabled.
+        policy_path: Where the policy checkpoint was written, when enabled.
+        policy_sha256: SHA-256 of that checkpoint file.
     """
 
     episodic_returns: list[float] = field(default_factory=list)
@@ -309,6 +311,8 @@ class PpoSummary:
     sps: float = 0.0
     wandb_url: str | None = None
     episodes_csv: str | None = None
+    policy_path: str | None = None
+    policy_sha256: str | None = None
 
     def render(self) -> str:
         """Format the end-of-run console summary."""
@@ -325,6 +329,8 @@ class PpoSummary:
         )
         if self.episodes_csv:
             lines.append(f"episode log: {self.episodes_csv}")
+        if self.policy_path:
+            lines.append(f"policy checkpoint: {self.policy_path} (sha256 {self.policy_sha256})")
         return "\n".join(lines)
 
 
@@ -338,9 +344,15 @@ def run_ppo(config: PpoConfig) -> PpoSummary:
         A summary of the run.
 
     Raises:
-        ValueError: If the action space is not ``Discrete``, or the config's
-            batch geometry doesn't divide evenly.
+        ValueError: If the action space is not ``Discrete``, the config's
+            batch geometry doesn't divide evenly, or ``save_policy_path`` is
+            set (policy checkpoints cover the continuous actors only).
     """
+    if config.save_policy_path is not None:
+        raise ValueError(
+            "save_policy_path: policy checkpoints cover the continuous-action actors "
+            "(sac, her-sac, flashsac, ppo-continuous); discrete PPO has none yet."
+        )
     if config.batch_size % config.num_minibatches != 0:
         raise ValueError(
             f"batch_size {config.batch_size} must divide evenly into "

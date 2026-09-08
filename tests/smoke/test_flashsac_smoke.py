@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from roborl.algos.flashsac.flashsac import FlashSacConfig, run_flashsac
+from roborl.io import load_policy
 
 
 @pytest.mark.smoke
@@ -21,6 +22,7 @@ def test_flashsac_400_steps_cpu(tmp_path: Path) -> None:
             track=False,
             save_episodes=True,
             episode_dir=str(tmp_path),
+            save_policy_path=str(tmp_path / "flashsac.pt"),
         )
     )
     assert summary.steps == 400
@@ -31,6 +33,20 @@ def test_flashsac_400_steps_cpu(tmp_path: Path) -> None:
     assert summary.episodes_csv is not None
     csv_text = Path(summary.episodes_csv).read_text()
     assert csv_text.startswith("run_id,global_step,episodic_return")
+    policy = load_policy(tmp_path / "flashsac.pt")
+    assert summary.policy_path == str(tmp_path / "flashsac.pt")
+    assert summary.policy_sha256 == policy.sha256
+    assert "policy checkpoint:" in summary.render()
+    assert policy.spec.algo == "flashsac"
+    assert policy.metadata["global_step"] == summary.steps
+    assert policy.metadata["env_id"] == "Pendulum-v1"
+    assert policy.metadata["config"]["seed"] == policy.metadata["seed"]
+    action = policy.act(np.zeros(policy.spec.obs_dim, dtype=np.float32))
+    assert action.shape == (policy.spec.act_dim,) and np.all(np.isfinite(action))
+    assert np.all(action >= policy.spec.action_low) and np.all(action <= policy.spec.action_high)
+    # Pendulum's true bounds, not the [-1, 1] the actor was trained behind.
+    assert policy.spec.action_low == (-2.0,) and policy.spec.action_high == (2.0,)
+    assert policy.spec.arch["hidden"] == 128 and policy.spec.arch["num_blocks"] == 2
 
 
 @pytest.mark.smoke

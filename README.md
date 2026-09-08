@@ -45,6 +45,7 @@ git clone https://github.com/fsafaei/roborl && cd roborl
 uv sync                        # add --extra mujoco for MuJoCo envs
 uv run roborl demo             # random agent on CartPole — verifies the whole pipeline
 uv run pytest -m "unit or smoke"
+uv run roborl sac --env-id Pendulum-v1 --save-policy-path runs/sac.pt   # keep the policy (docs/checkpoints.md)
 ```
 
 Install matrix ([details](docs/setup.md)):
@@ -70,6 +71,7 @@ src/roborl/
 ├── utils/           # seeding, device resolution (cuda > mps > cpu)
 ├── envs/factory.py  # seeded env thunks with episode-stats & video wrappers
 ├── telemetry/       # W&B wrapper (online/offline/disabled) + canonical metric names
+├── io/              # policy checkpoints: save_policy / load_policy, one versioned format (ADR 0009)
 ├── benchmark/       # reference fetching, IQM/CI statistics, plots, reports
 └── algos/           # sac, ppo (discrete + continuous), flashsac — one package each
 docs/                # setup, telemetry, debugging, lifecycle, benchmarking, ADRs, lab notebook
