@@ -26,6 +26,7 @@ from torch import nn, optim
 from roborl.algos.sac.buffer import ReplayBuffer
 from roborl.config import ExperimentConfig
 from roborl.envs.factory import make_env
+from roborl.io import PolicySpec, action_bounds, policy_metadata, save_policy
 from roborl.telemetry import metrics
 from roborl.telemetry.logger import RunLogger
 from roborl.utils.device import resolve_device
@@ -224,6 +225,8 @@ class SacSummary:
         sps: Average environment steps per second.
         wandb_url: The W&B run URL when tracking online, else None.
         episodes_csv: Path of the saved episode log, when enabled.
+        policy_path: Where the policy checkpoint was written, when enabled.
+        policy_sha256: SHA-256 of that checkpoint file.
     """
 
     episodic_returns: list[float] = field(default_factory=list)
@@ -232,6 +235,8 @@ class SacSummary:
     sps: float = 0.0
     wandb_url: str | None = None
     episodes_csv: str | None = None
+    policy_path: str | None = None
+    policy_sha256: str | None = None
 
     def render(self) -> str:
         """Format the end-of-run console summary."""
@@ -248,6 +253,8 @@ class SacSummary:
         )
         if self.episodes_csv:
             lines.append(f"episode log: {self.episodes_csv}")
+        if self.policy_path:
+            lines.append(f"policy checkpoint: {self.policy_path} (sha256 {self.policy_sha256})")
         return "\n".join(lines)
 
 
@@ -414,6 +421,17 @@ def run_sac(config: SacConfig) -> SacSummary:
 
     elapsed = time.perf_counter() - start
     episodes_csv = _save_episode_log(config, returns, lengths) if config.save_episodes else None
+    policy_sha256 = None
+    if config.save_policy_path is not None:
+        low, high = action_bounds(env.action_space)
+        policy_sha256 = save_policy(
+            config.save_policy_path,
+            actor,
+            PolicySpec("sac", obs_dim, act_dim, low, high),
+            metadata=policy_metadata(
+                config, global_step=config.total_timesteps, resolved_device=str(device)
+            ),
+        )
     summary = SacSummary(
         episodic_returns=returns,
         episodic_lengths=lengths,
@@ -421,6 +439,8 @@ def run_sac(config: SacConfig) -> SacSummary:
         sps=config.total_timesteps / elapsed,
         wandb_url=logger.url,
         episodes_csv=episodes_csv,
+        policy_path=config.save_policy_path,
+        policy_sha256=policy_sha256,
     )
     logger.finish()
     env.close()

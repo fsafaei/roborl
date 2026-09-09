@@ -36,6 +36,10 @@ class ExperimentConfig:
             environment variable, then to the account default.
         capture_video: Record periodic episode videos (env 0 only).
         video_dir: Where video files are written before upload.
+        save_policy_path: Where to write the trained policy when the run
+            ends (``roborl.io.save_policy``, docs/checkpoints.md). ``None``
+            saves nothing. ``demo`` and discrete ``ppo`` reject it: they
+            have no continuous policy to save.
     """
 
     exp_name: str = "exp"
@@ -48,6 +52,7 @@ class ExperimentConfig:
     wandb_entity: str | None = None
     capture_video: bool = False
     video_dir: str = "videos"
+    save_policy_path: str | None = None
 
     @cached_property
     def run_name(self) -> str:

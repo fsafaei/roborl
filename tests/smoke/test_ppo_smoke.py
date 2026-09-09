@@ -36,3 +36,13 @@ def test_ppo_four_iterations_cpu(tmp_path: Path) -> None:
 def test_ppo_rejects_continuous_action_space() -> None:
     with pytest.raises(ValueError, match="discrete"):
         run_ppo(PpoConfig(env_id="Pendulum-v1", total_timesteps=512, device="cpu", track=False))
+
+
+@pytest.mark.smoke
+def test_ppo_discrete_rejects_save_policy_path(tmp_path: Path) -> None:
+    from roborl.algos.ppo.ppo import PpoConfig, run_ppo
+
+    with pytest.raises(ValueError, match="save_policy_path"):
+        run_ppo(
+            PpoConfig(env_id="CartPole-v1", device="cpu", save_policy_path=str(tmp_path / "x.pt"))
+        )

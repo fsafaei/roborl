@@ -88,7 +88,12 @@ def run_demo(config: DemoConfig) -> DemoSummary:
 
     Returns:
         A summary of the run.
+
+    Raises:
+        ValueError: If ``save_policy_path`` is set; a random agent has no policy.
     """
+    if config.save_policy_path is not None:
+        raise ValueError("save_policy_path: the demo's random agent has no policy to save.")
     seed_everything(config.seed)
     device = resolve_device(config.device)  # unused by the random agent; proves resolution
 

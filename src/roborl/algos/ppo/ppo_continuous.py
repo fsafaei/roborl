@@ -16,6 +16,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 import gymnasium as gym
 import numpy as np
@@ -33,6 +34,7 @@ from roborl.algos.ppo.ppo import (
     explained_variance,
     layer_init,
 )
+from roborl.io import ObsNormalizer, PolicySpec, action_bounds, policy_metadata, save_policy
 from roborl.telemetry import metrics
 from roborl.telemetry.logger import RunLogger
 from roborl.utils.device import resolve_device
@@ -180,6 +182,43 @@ class Agent(nn.Module):
         if action is None:
             action = probs.sample()
         return action, probs.log_prob(action).sum(1), probs.entropy().sum(1), self.critic(x)
+
+
+def _wrapper(env: gym.Env[Any, Any], cls: type[Any]) -> Any:
+    """The first wrapper of class ``cls`` around ``env``, walking inward."""
+    while not isinstance(env, cls):
+        if not isinstance(env, gym.Wrapper):
+            raise RuntimeError(f"no {cls.__name__} wrapper found around env 0")
+        env = env.env
+    return env
+
+
+def _frozen_obs_normalizer(envs: gym.vector.SyncVectorEnv) -> ObsNormalizer:
+    """Env 0's ``NormalizeObservation`` statistics, frozen for the checkpoint.
+
+    Every vector env keeps its own running mean/var (as in CleanRL); env 0's
+    is the one saved. The ``TransformObservation`` clip to ``[-10, 10]`` that
+    follows it in ``make_continuous_env`` is part of the same input pipeline,
+    so it is recorded alongside.
+    """
+    norm = _wrapper(envs.envs[0], gym.wrappers.NormalizeObservation)
+    return ObsNormalizer(
+        mean=np.array(norm.obs_rms.mean),
+        var=np.array(norm.obs_rms.var),
+        epsilon=float(norm.epsilon),
+        clip=10.0,
+    )
+
+
+def _clipped_action_space(envs: gym.vector.SyncVectorEnv) -> gym.Space[Any]:
+    """The bounds ``ClipAction`` clips to: the env's true action space.
+
+    ``ClipAction`` itself advertises an unbounded ``Box`` (it accepts any
+    action), so the vector env's ``single_action_space`` is ``[-inf, inf]``;
+    the checkpoint must record the bounds one wrapper below it.
+    """
+    space: gym.Space[Any] = _wrapper(envs.envs[0], gym.wrappers.ClipAction).env.action_space
+    return space
 
 
 def run_ppo_continuous(config: PpoContinuousConfig) -> PpoSummary:
@@ -387,6 +426,16 @@ def run_ppo_continuous(config: PpoContinuousConfig) -> PpoSummary:
     episodes_csv = (
         _save_episode_log(config, returns_log, end_steps_log) if config.save_episodes else None
     )
+    policy_sha256 = None
+    if config.save_policy_path is not None:
+        low, high = action_bounds(_clipped_action_space(envs))
+        policy_sha256 = save_policy(
+            config.save_policy_path,
+            agent,
+            PolicySpec("ppo_continuous", obs_dim, action_dim, low, high),
+            metadata=policy_metadata(config, global_step=global_step, resolved_device=str(device)),
+            obs_normalizer=_frozen_obs_normalizer(envs),
+        )
     summary = PpoSummary(
         episodic_returns=returns_log,
         episodic_lengths=lengths_log,
@@ -395,6 +444,8 @@ def run_ppo_continuous(config: PpoContinuousConfig) -> PpoSummary:
         sps=global_step / elapsed,
         wandb_url=logger.url,
         episodes_csv=episodes_csv,
+        policy_path=config.save_policy_path,
+        policy_sha256=policy_sha256,
     )
     logger.finish()
     envs.close()
